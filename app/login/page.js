@@ -1,94 +1,69 @@
-'use client'
-import { useState, useEffect } from 'react'
-import { createClient } from '@supabase/supabase-js'
+"use client";
+import { useState } from 'react';
+import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-)
+  "https://zynnnyxmwbgzbatphpjh.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp5bm5ueXhtd2JnemJhdHBocGpoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIxMDk1MzYsImV4cCI6MjA4NzY4NTUzNn0.qCycJ1lej56BMO1Akti2qbPuVi1D1bGYptpskju8vPM"
+);
 
-export default function Dashboard() {
-  const [clients, setClients] = useState([])
-  const [name, setName] = useState('')
-  const [budget, setBudget] = useState('')
-  const [status, setStatus] = useState('Prospect')
-  const [loading, setLoading] = useState(true)
+export default function Login() {
+  const [email, setEmail] = useState('');
+  const [sent, setSent] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  // CHARGER LES DONNÉES DEPUIS LE CLOUD
-  useEffect(() => {
-    fetchClients()
-  }, [])
-
-  async function fetchClients() {
-    const { data, error } = await supabase
-      .from('clients')
-      .select('*')
-      .order('created_at', { ascending: false })
-    
-    if (data) setClients(data)
-    setLoading(false)
-  }
-
-  // AJOUTER AU CLOUD
-  async function addClient() {
-    if (!name || !budget) return
-    const { error } = await supabase
-      .from('clients')
-      .insert([{ name, budget: parseFloat(budget), status }])
-    
-    if (!error) {
-      setName(''); setBudget('');
-      fetchClients()
+  const handleLogin = async () => {
+    if (!email) return alert("Entre ton email");
+    setLoading(true);
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: 'https://ghost-saa-s.vercel.app/dashboard',
+      }
+    });
+    if (error) {
+      alert("Erreur : " + error.message);
+    } else {
+      setSent(true);
     }
-  }
-
-  // SUPPRIMER DU CLOUD
-  async function deleteClient(id) {
-    await supabase.from('clients').delete().eq('id', id)
-    fetchClients()
-  }
-
-  const stats = {
-    total: clients.reduce((acc, c) => acc + (c.budget || 0), 0),
-    paid: clients.filter(c => c.status === 'Payé').reduce((acc, c) => acc + (c.budget || 0), 0)
-  }
-
-  if (loading) return <div className="min-h-screen bg-black flex items-center justify-center text-blue-500 font-black tracking-widest uppercase">Sync_Cloud...</div>
+    setLoading(false);
+  };
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white p-12">
-      <div className="max-w-5xl mx-auto">
-        <div className="flex justify-between items-end mb-12">
-          <div>
-            <h1 className="text-4xl font-black italic text-blue-500 uppercase">GhostSaaS <span className="text-white text-xl not-italic">Cloud</span></h1>
-            <p className="text-slate-600 text-[10px] font-bold tracking-[0.5em] mt-2 text-right">DATABASE: CONNECTED</p>
-          </div>
-          <div className="text-right">
-            <p className="text-slate-500 text-[10px] font-black uppercase">Chiffre d'Affaires Encaissé</p>
-            <h2 className="text-4xl font-black text-green-400">{stats.paid}€</h2>
-          </div>
-        </div>
+    <div className="min-h-screen bg-white flex items-center justify-center font-sans">
+      <div className="max-w-md w-full mx-auto p-10">
+        <h1 className="text-3xl font-black italic uppercase mb-2">GhostSaaS.ai</h1>
+        <p className="text-gray-400 font-medium mb-10">Your LinkedIn authority engine.</p>
 
-        {/* FORMULAIRE */}
-        <div className="bg-[#0f0f0f] p-4 rounded-3xl border border-slate-800 flex gap-4 mb-12">
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Projet" className="flex-1 bg-black border border-slate-800 p-4 rounded-2xl outline-none focus:border-blue-500"/>
-          <input type="number" value={budget} onChange={(e) => setBudget(e.target.value)} placeholder="€" className="w-24 bg-black border border-slate-800 p-4 rounded-2xl outline-none"/>
-          <button onClick={addClient} className="bg-blue-600 px-8 rounded-2xl font-black uppercase text-[10px]">Injecter</button>
-        </div>
-
-        {/* LISTE */}
-        <div className="space-y-3">
-          {clients.map(client => (
-            <div key={client.id} className="bg-[#0f0f0f] border border-slate-800 p-6 rounded-[2rem] flex justify-between items-center group">
-              <div>
-                <h3 className="text-lg font-bold">{client.name}</h3>
-                <p className="text-xs text-slate-500 font-mono">{client.budget}€ • {client.status}</p>
-              </div>
-              <button onClick={() => deleteClient(client.id)} className="opacity-0 group-hover:opacity-100 text-red-500 text-[10px] font-black uppercase tracking-widest transition-all">Supprimer</button>
-            </div>
-          ))}
-        </div>
+        {sent ? (
+          <div className="bg-green-50 border-2 border-green-500 rounded-[32px] p-10 text-center">
+            <span className="text-5xl mb-4 block">📧</span>
+            <h2 className="font-black text-xl uppercase mb-3">Check your email</h2>
+            <p className="text-gray-500 font-medium">
+              We sent a magic link to <strong>{email}</strong>.<br/>
+              Click it to access your dashboard.
+            </p>
+          </div>
+        ) : (
+          <div className="border-2 border-black p-8 rounded-[40px] shadow-[12px_12px_0px_0px_rgba(0,0,0,1)]">
+            <p className="font-black uppercase text-sm mb-3 text-gray-500">Enter your email</p>
+            <input
+              type="email"
+              placeholder="founder@company.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full border-2 border-gray-200 rounded-2xl px-6 py-4 font-medium text-lg outline-none focus:border-black transition-all mb-6"
+            />
+            <button
+              onClick={handleLogin}
+              disabled={loading}
+              className="w-full bg-black text-white font-black py-5 rounded-2xl text-lg hover:bg-blue-600 transition-all"
+            >
+              {loading ? "SENDING..." : "GET MAGIC LINK →"}
+            </button>
+          </div>
+        )}
       </div>
     </div>
-  )
+  );
 }
