@@ -8,9 +8,9 @@ const supabase = createClient(
 );
 
 const ANGLE_CONFIG = {
-  rant: { label: '⚡ The Rant', color: 'bg-red-600', description: 'Provocateur, contrarian' },
-  lesson: { label: '🎓 The Lesson', color: 'bg-blue-600', description: 'Éducatif, actionnable' },
-  vision: { label: '🔭 The Vision', color: 'bg-purple-600', description: 'Visionnaire, inspirant' },
+  rant: { label: 'THE RANT', icon: '⚡', color: '#C9A84C', description: 'Provocateur · Contrarian' },
+  lesson: { label: 'THE LESSON', icon: '📖', color: '#A8C5DA', description: 'Éducatif · Actionnable' },
+  vision: { label: 'THE VISION', icon: '🔭', color: '#B8A9D9', description: 'Visionnaire · Inspirant' },
 };
 
 export default function Dashboard() {
@@ -25,23 +25,18 @@ export default function Dashboard() {
   const [creditsRemaining, setCreditsRemaining] = useState(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [upgradeLoading, setUpgradeLoading] = useState(false);
+  const [activeAngle, setActiveAngle] = useState('rant');
 
-  useEffect(() => {
-    fetchHistory();
-  }, []);
+  useEffect(() => { fetchHistory(); }, []);
 
   const fetchHistory = async () => {
-    const { data, error } = await supabase
-      .from('posts')
-      .select('*')
-      .order('created_at', { ascending: false });
-    if (error) console.error('Fetch error:', error);
-    else setHistory(data || []);
+    const { data } = await supabase.from('posts').select('*').order('created_at', { ascending: false });
+    setHistory(data || []);
   };
 
   const handleUpload = async () => {
-    if (!file) return alert("Select a video or audio file first");
-    if (!email) return alert("Enter your email first");
+    if (!file) return alert("Sélectionne un fichier audio ou vidéo");
+    if (!email) return alert("Entre ton email");
     setLoading(true);
     setAngles(null);
     setTranscript('');
@@ -52,23 +47,16 @@ export default function Dashboard() {
     formData.append('email', email);
 
     try {
-      const res = await fetch('/api/ai', {
-        method: 'POST',
-        body: formData,
-      });
+      const res = await fetch('/api/ai', { method: 'POST', body: formData });
       const text = await res.text();
-      if (!text) throw new Error("Réponse vide du serveur");
+      if (!text) throw new Error("Réponse vide");
       const data = JSON.parse(text);
-
-      if (data.error === 'NO_CREDITS') {
-        setShowUpgradeModal(true);
-        return;
-      }
-
+      if (data.error === 'NO_CREDITS') { setShowUpgradeModal(true); return; }
       if (!res.ok) throw new Error(data.error);
       setAngles(data.angles);
       setTranscript(data.transcript);
       setCreditsRemaining(data.credits_remaining);
+      setActiveAngle('rant');
     } catch (err) {
       alert("Erreur : " + err.message);
     } finally {
@@ -77,7 +65,7 @@ export default function Dashboard() {
   };
 
   const handleUpgrade = async () => {
-    if (!email) return alert("Enter your email first");
+    if (!email) return alert("Entre ton email");
     setUpgradeLoading(true);
     try {
       const res = await fetch('/api/stripe', {
@@ -95,19 +83,13 @@ export default function Dashboard() {
   };
 
   const handleSave = async (angleKey) => {
-    const content = angles[angleKey];
     const { error } = await supabase.from('posts').insert([{
       content_raw: transcript,
-      content_ai: content,
+      content_ai: angles[angleKey],
       status: 'draft',
       narrative_type: angleKey,
     }]);
-    if (error) {
-      console.error('Insert error:', error);
-    } else {
-      setSaved((prev) => ({ ...prev, [angleKey]: true }));
-      await fetchHistory();
-    }
+    if (!error) { setSaved(p => ({ ...p, [angleKey]: true })); await fetchHistory(); }
   };
 
   const handleCopy = (angleKey) => {
@@ -117,145 +99,423 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-white p-10 font-sans">
-      <div className="max-w-3xl mx-auto">
+    <div style={{
+      minHeight: '100vh',
+      background: '#080808',
+      color: '#E8E0D0',
+      fontFamily: "'Georgia', serif",
+      padding: '0',
+    }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600;700&display=swap');
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: #080808; }
+        .gold { color: #C9A84C; }
+        .gold-border { border-color: #C9A84C; }
+        input, textarea { background: transparent; color: #E8E0D0; outline: none; font-family: 'Montserrat', sans-serif; }
+        input::placeholder { color: #444; }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: #111; }
+        ::-webkit-scrollbar-thumb { background: #C9A84C44; border-radius: 2px; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        @keyframes shimmer { 0% { background-position: -200% center; } 100% { background-position: 200% center; } }
+        .animate-in { animation: fadeIn 0.6s ease forwards; }
+        .loading-shimmer {
+          background: linear-gradient(90deg, #C9A84C22 0%, #C9A84C66 50%, #C9A84C22 100%);
+          background-size: 200% auto;
+          animation: shimmer 2s linear infinite;
+        }
+        .angle-tab:hover { background: #C9A84C11 !important; }
+        .btn-gold:hover { background: #B8933B !important; transform: translateY(-1px); }
+        .btn-ghost:hover { background: #C9A84C11 !important; color: #C9A84C !important; }
+        .vault-item:hover { border-color: #C9A84C44 !important; background: #111 !important; }
+        .upload-zone:hover { border-color: #C9A84C88 !important; background: #C9A84C05 !important; }
+      `}</style>
 
-        <div className="flex justify-between items-center mb-2">
-          <h1 className="text-3xl font-black italic uppercase">GhostSaaS.ai</h1>
+      {/* Header */}
+      <div style={{
+        borderBottom: '1px solid #1A1A1A',
+        padding: '24px 48px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        backdropFilter: 'blur(10px)',
+        position: 'sticky',
+        top: 0,
+        zIndex: 100,
+        background: '#08080899',
+      }}>
+        <div>
+          <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '22px', fontWeight: 300, letterSpacing: '4px', color: '#C9A84C' }}>
+            GHOST<span style={{ color: '#E8E0D0' }}>SAAS</span>
+          </div>
+          <div style={{ fontSize: '9px', letterSpacing: '3px', color: '#444', fontFamily: 'Montserrat', marginTop: '2px' }}>
+            AUTHORITY INTELLIGENCE
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
           {creditsRemaining !== null && (
-            <span className="font-black text-sm uppercase bg-black text-white px-4 py-2 rounded-full">
-              {creditsRemaining} credits left
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#C9A84C', animation: 'pulse 2s infinite' }} />
+              <span style={{ fontSize: '11px', letterSpacing: '2px', color: '#888', fontFamily: 'Montserrat' }}>
+                {creditsRemaining} CREDITS
+              </span>
+            </div>
           )}
         </div>
-        <p className="text-gray-400 font-medium mb-10">Upload a call. Get 3 angles. Choose your weapon.</p>
+      </div>
 
-        {showUpgradeModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
-            <div className="bg-white rounded-[40px] p-12 max-w-md text-center shadow-2xl">
-              <span className="text-5xl mb-4 block">⚡</span>
-              <h2 className="text-2xl font-black uppercase mb-3">You've used your free genius.</h2>
-              <p className="text-gray-400 font-medium mb-8">
-                Upgrade to <strong>Growth at $299/mo</strong> to unlock unlimited authority content.
+      <div style={{ maxWidth: '900px', margin: '0 auto', padding: '60px 48px' }}>
+
+        {/* Hero */}
+        <div style={{ textAlign: 'center', marginBottom: '64px' }} className="animate-in">
+          <div style={{ fontSize: '11px', letterSpacing: '4px', color: '#C9A84C', fontFamily: 'Montserrat', fontWeight: 500, marginBottom: '20px' }}>
+            ✦ YOUR WORDS. AMPLIFIED. ✦
+          </div>
+          <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '56px', fontWeight: 300, lineHeight: 1.1, color: '#E8E0D0', marginBottom: '16px' }}>
+            Transform Your Voice<br /><em style={{ color: '#C9A84C' }}>Into Authority</em>
+          </h1>
+          <p style={{ fontSize: '14px', color: '#555', letterSpacing: '1px', fontFamily: 'Montserrat', fontWeight: 300 }}>
+            Upload a call. Receive three strategic angles. Dominate LinkedIn.
+          </p>
+        </div>
+
+        {/* Email Input */}
+        <div style={{ marginBottom: '32px' }}>
+          <div style={{ fontSize: '9px', letterSpacing: '3px', color: '#C9A84C', fontFamily: 'Montserrat', marginBottom: '10px' }}>
+            YOUR EMAIL
+          </div>
+          <input
+            type="email"
+            placeholder="founder@company.com"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '16px 24px',
+              border: '1px solid #1E1E1E',
+              borderRadius: '4px',
+              fontSize: '14px',
+              fontFamily: 'Montserrat',
+              background: '#0D0D0D',
+              color: '#E8E0D0',
+              letterSpacing: '1px',
+              transition: 'border-color 0.3s',
+            }}
+            onFocus={e => e.target.style.borderColor = '#C9A84C44'}
+            onBlur={e => e.target.style.borderColor = '#1E1E1E'}
+          />
+        </div>
+
+        {/* Upload Zone */}
+        <div style={{
+          border: '1px solid #1E1E1E',
+          borderRadius: '8px',
+          padding: '48px',
+          textAlign: 'center',
+          marginBottom: '32px',
+          transition: 'all 0.3s',
+          background: '#0A0A0A',
+          cursor: 'pointer',
+        }} className="upload-zone" onClick={() => document.getElementById('file-upload').click()}>
+          <input
+            type="file"
+            id="file-upload"
+            accept="video/*,audio/*"
+            onChange={e => setFile(e.target.files[0])}
+            style={{ display: 'none' }}
+          />
+          <div style={{ fontSize: '32px', marginBottom: '16px' }}>
+            {file ? '✓' : '◎'}
+          </div>
+          <div style={{ fontSize: '11px', letterSpacing: '3px', color: file ? '#C9A84C' : '#333', fontFamily: 'Montserrat', marginBottom: '8px' }}>
+            {file ? file.name.toUpperCase() : 'DROP YOUR ZOOM CALL OR VOICE MEMO'}
+          </div>
+          {!file && (
+            <div style={{ fontSize: '11px', color: '#2A2A2A', fontFamily: 'Montserrat', letterSpacing: '1px' }}>
+              MP4 · MOV · MP3 · WAV · M4A
+            </div>
+          )}
+        </div>
+
+        {/* CTA Button */}
+        <button
+          onClick={handleUpload}
+          disabled={loading}
+          className="btn-gold"
+          style={{
+            width: '100%',
+            padding: '20px',
+            background: loading ? '#1A1A1A' : '#C9A84C',
+            color: loading ? '#444' : '#080808',
+            border: 'none',
+            borderRadius: '4px',
+            fontSize: '11px',
+            letterSpacing: '4px',
+            fontFamily: 'Montserrat',
+            fontWeight: 700,
+            cursor: loading ? 'not-allowed' : 'pointer',
+            marginBottom: '64px',
+            transition: 'all 0.3s',
+          }}
+        >
+          {loading ? (
+            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
+              <span style={{ display: 'inline-block', width: '12px', height: '12px', border: '1px solid #C9A84C44', borderTop: '1px solid #C9A84C', borderRadius: '50%', animation: 'shimmer 1s linear infinite' }} />
+              ANALYZING YOUR GENIUS...
+            </span>
+          ) : 'EXTRACT 3 STRATEGIC ANGLES →'}
+        </button>
+
+        {/* Transcript */}
+        {transcript && (
+          <div style={{
+            padding: '24px 32px',
+            background: '#0A0A0A',
+            border: '1px solid #1A1A1A',
+            borderLeft: '2px solid #C9A84C44',
+            borderRadius: '4px',
+            marginBottom: '48px',
+          }} className="animate-in">
+            <div style={{ fontSize: '9px', letterSpacing: '3px', color: '#C9A84C', fontFamily: 'Montserrat', marginBottom: '12px' }}>
+              TRANSCRIPT
+            </div>
+            <p style={{ fontSize: '13px', color: '#555', lineHeight: 1.7, fontFamily: 'Montserrat', fontWeight: 300 }}>
+              {transcript}
+            </p>
+          </div>
+        )}
+
+        {/* 3 Angles */}
+        {angles && (
+          <div style={{ marginBottom: '80px' }} className="animate-in">
+            <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+              <div style={{ fontSize: '9px', letterSpacing: '4px', color: '#C9A84C', fontFamily: 'Montserrat', marginBottom: '8px' }}>
+                ✦ YOUR THREE ANGLES ✦
+              </div>
+              <div style={{ width: '40px', height: '1px', background: '#C9A84C44', margin: '0 auto' }} />
+            </div>
+
+            {/* Tabs */}
+            <div style={{ display: 'flex', gap: '2px', marginBottom: '0', background: '#0D0D0D', padding: '4px', borderRadius: '6px 6px 0 0', border: '1px solid #1A1A1A', borderBottom: 'none' }}>
+              {Object.entries(ANGLE_CONFIG).map(([key, config]) => (
+                <button
+                  key={key}
+                  onClick={() => setActiveAngle(key)}
+                  className="angle-tab"
+                  style={{
+                    flex: 1,
+                    padding: '14px',
+                    background: activeAngle === key ? '#141414' : 'transparent',
+                    border: 'none',
+                    borderBottom: activeAngle === key ? `2px solid ${config.color}` : '2px solid transparent',
+                    color: activeAngle === key ? config.color : '#333',
+                    fontSize: '9px',
+                    letterSpacing: '2px',
+                    fontFamily: 'Montserrat',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  {config.icon} {config.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Content */}
+            <div style={{
+              background: '#0D0D0D',
+              border: '1px solid #1A1A1A',
+              borderTop: 'none',
+              borderRadius: '0 0 6px 6px',
+              padding: '40px',
+            }}>
+              <div style={{ fontSize: '10px', color: '#333', letterSpacing: '2px', fontFamily: 'Montserrat', marginBottom: '24px' }}>
+                {ANGLE_CONFIG[activeAngle].description}
+              </div>
+              <p style={{
+                fontSize: '15px',
+                lineHeight: 1.8,
+                color: '#C8BFA8',
+                fontFamily: "'Cormorant Garamond', serif",
+                fontWeight: 300,
+                whiteSpace: 'pre-wrap',
+                marginBottom: '32px',
+              }}>
+                {angles[activeAngle]}
               </p>
-              <button
-                onClick={handleUpgrade}
-                disabled={upgradeLoading}
-                className="w-full bg-black text-white font-black py-5 rounded-2xl text-lg hover:bg-blue-600 transition-all mb-3"
-              >
-                {upgradeLoading ? "REDIRECTING..." : "🚀 UPGRADE TO GROWTH"}
-              </button>
-              <button
-                onClick={() => setShowUpgradeModal(false)}
-                className="text-gray-400 text-sm font-medium hover:text-black"
-              >
-                Maybe later
-              </button>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button
+                  onClick={() => handleCopy(activeAngle)}
+                  className="btn-ghost"
+                  style={{
+                    flex: 1,
+                    padding: '14px',
+                    background: 'transparent',
+                    border: '1px solid #222',
+                    borderRadius: '4px',
+                    color: '#555',
+                    fontSize: '9px',
+                    letterSpacing: '2px',
+                    fontFamily: 'Montserrat',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  {copied === activeAngle ? '✓ COPIED' : '◻ COPY'}
+                </button>
+                <button
+                  onClick={() => handleSave(activeAngle)}
+                  disabled={saved[activeAngle]}
+                  className="btn-gold"
+                  style={{
+                    flex: 1,
+                    padding: '14px',
+                    background: saved[activeAngle] ? '#1A1A1A' : '#C9A84C',
+                    border: 'none',
+                    borderRadius: '4px',
+                    color: saved[activeAngle] ? '#C9A84C' : '#080808',
+                    fontSize: '9px',
+                    letterSpacing: '2px',
+                    fontFamily: 'Montserrat',
+                    fontWeight: 700,
+                    cursor: saved[activeAngle] ? 'default' : 'pointer',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  {saved[activeAngle] ? '✓ ARCHIVED' : '◈ ARCHIVE'}
+                </button>
+              </div>
             </div>
           </div>
         )}
 
-        <div className="mb-6">
-          <input
-            type="email"
-            placeholder="Enter your email to get started..."
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full border-2 border-gray-200 rounded-2xl px-6 py-4 font-medium text-lg outline-none focus:border-black transition-all"
-          />
-        </div>
-
-        <div className="border-2 border-black p-8 rounded-[40px] shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] mb-10">
-          <div className="border-4 border-dashed border-gray-200 p-10 rounded-3xl text-center mb-6">
-            <input
-              type="file"
-              accept="video/*,audio/*"
-              onChange={(e) => setFile(e.target.files[0])}
-              className="hidden"
-              id="video-upload"
-            />
-            <label htmlFor="video-upload" className="cursor-pointer">
-              <span className="text-5xl mb-4 block">🎥</span>
-              <span className="font-black text-gray-400 block uppercase">
-                {file ? file.name : "Drop your founder call or voice memo"}
-              </span>
-            </label>
+        {/* Vault */}
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
+            <div style={{ fontSize: '9px', letterSpacing: '4px', color: '#C9A84C', fontFamily: 'Montserrat' }}>
+              THE VAULT
+            </div>
+            <div style={{ flex: 1, height: '1px', background: '#1A1A1A' }} />
+            <div style={{ fontSize: '9px', letterSpacing: '2px', color: '#333', fontFamily: 'Montserrat' }}>
+              {history.length} PIECES
+            </div>
           </div>
-          <button
-            onClick={handleUpload}
-            disabled={loading}
-            className="w-full bg-black text-white font-black py-6 rounded-2xl text-xl hover:bg-blue-600 transition-all"
-          >
-            {loading ? "ANALYZING YOUR GENIUS..." : "EXTRACT 3 ANGLES"}
-          </button>
-        </div>
 
-        {transcript && (
-          <div className="mb-8 p-6 bg-gray-50 rounded-2xl border border-gray-200 text-gray-500 text-sm">
-            <p className="font-black uppercase mb-2 text-gray-400">Transcript</p>
-            <p>{transcript}</p>
-          </div>
-        )}
-
-        {angles && (
-          <div className="space-y-6 mb-12">
-            <h2 className="text-2xl font-black uppercase">Choose Your Angle</h2>
-            {Object.entries(ANGLE_CONFIG).map(([key, config]) => (
-              <div key={key} className="border-2 border-gray-100 rounded-[32px] overflow-hidden shadow-sm">
-                <div className={`${config.color} text-white p-4`}>
-                  <span className="font-black text-lg">{config.label}</span>
-                  <span className="text-sm opacity-75 ml-3">{config.description}</span>
-                </div>
-                <div className="p-6 whitespace-pre-wrap font-medium text-gray-800">
-                  {angles[key]}
-                </div>
-                <div className="p-4 border-t border-gray-100 flex gap-3">
-                  <button
-                    onClick={() => handleCopy(key)}
-                    className="flex-1 py-3 rounded-xl border-2 border-black font-black uppercase text-sm hover:bg-black hover:text-white transition-all"
-                  >
-                    {copied === key ? "✅ COPIED!" : "📋 COPY"}
-                  </button>
-                  <button
-                    onClick={() => handleSave(key)}
-                    disabled={saved[key]}
-                    className={`flex-1 py-3 rounded-xl font-black uppercase text-sm transition-all ${
-                      saved[key] ? 'bg-green-500 text-white' : 'bg-black text-white hover:bg-green-600'
-                    }`}
-                  >
-                    {saved[key] ? "✅ SAVED!" : "💾 SAVE TO VAULT"}
-                  </button>
-                </div>
+          {history.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '80px 40px', border: '1px solid #111', borderRadius: '8px' }}>
+              <div style={{ fontSize: '32px', marginBottom: '16px', opacity: 0.3 }}>◎</div>
+              <div style={{ fontSize: '11px', letterSpacing: '3px', color: '#222', fontFamily: 'Montserrat', marginBottom: '8px' }}>
+                YOUR VAULT AWAITS
               </div>
-            ))}
-          </div>
-        )}
+              <div style={{ fontSize: '12px', color: '#1E1E1E', fontFamily: 'Montserrat', fontWeight: 300 }}>
+                Upload your first call to begin building your authority archive
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {history.map((post) => (
+                <div
+                  key={post.id}
+                  className="vault-item"
+                  style={{
+                    padding: '28px 32px',
+                    border: '1px solid #111',
+                    borderRadius: '6px',
+                    background: '#0A0A0A',
+                    transition: 'all 0.3s',
+                    cursor: 'default',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                    <span style={{ fontSize: '9px', letterSpacing: '2px', color: ANGLE_CONFIG[post.narrative_type]?.color || '#C9A84C', fontFamily: 'Montserrat', fontWeight: 600 }}>
+                      {ANGLE_CONFIG[post.narrative_type]?.icon} {ANGLE_CONFIG[post.narrative_type]?.label || post.narrative_type?.toUpperCase()}
+                    </span>
+                    <div style={{ flex: 1, height: '1px', background: '#111' }} />
+                    <span style={{ fontSize: '9px', color: '#222', fontFamily: 'Montserrat', letterSpacing: '1px' }}>
+                      {new Date(post.created_at).toLocaleDateString('fr-FR')}
+                    </span>
+                  </div>
+                  <p style={{ fontSize: '14px', color: '#444', lineHeight: 1.7, fontFamily: "'Cormorant Garamond', serif", fontWeight: 300 }}>
+                    {post.content_ai?.substring(0, 200)}...
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
-        <h2 className="text-2xl font-black mb-6 uppercase">Vault ({history.length})</h2>
-        {history.length === 0 ? (
-          <div className="border-2 border-dashed border-gray-200 rounded-[32px] p-12 text-center">
-            <span className="text-5xl mb-4 block">👋</span>
-            <h3 className="font-black text-xl uppercase mb-3">Welcome to GhostSaaS</h3>
-            <p className="text-gray-400 font-medium mb-2">Your Vault is empty.</p>
-            <p className="text-gray-400 font-medium">
-              Drop your last Zoom recording or voice memo above.<br/>
-              We'll build your Authority Profile in 60 seconds.
+      </div>
+
+      {/* Upgrade Modal */}
+      {showUpgradeModal && (
+        <div style={{
+          position: 'fixed', inset: 0,
+          background: '#000000CC',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 1000,
+          backdropFilter: 'blur(8px)',
+        }}>
+          <div style={{
+            background: '#0D0D0D',
+            border: '1px solid #C9A84C33',
+            borderRadius: '8px',
+            padding: '60px',
+            maxWidth: '480px',
+            width: '90%',
+            textAlign: 'center',
+          }} className="animate-in">
+            <div style={{ fontSize: '32px', marginBottom: '24px' }}>✦</div>
+            <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '32px', fontWeight: 300, color: '#E8E0D0', marginBottom: '12px' }}>
+              Your free genius<br /><em style={{ color: '#C9A84C' }}>is exhausted.</em>
+            </div>
+            <p style={{ fontSize: '12px', color: '#444', fontFamily: 'Montserrat', fontWeight: 300, letterSpacing: '1px', marginBottom: '40px', lineHeight: 1.7 }}>
+              Unlock unlimited authority content.<br />
+              Join the founders building their empire on LinkedIn.
             </p>
+            <div style={{ fontSize: '28px', color: '#C9A84C', fontFamily: "'Cormorant Garamond', serif", marginBottom: '32px' }}>
+              $299<span style={{ fontSize: '14px', color: '#444', fontFamily: 'Montserrat' }}> / month</span>
+            </div>
+            <button
+              onClick={handleUpgrade}
+              disabled={upgradeLoading}
+              className="btn-gold"
+              style={{
+                width: '100%',
+                padding: '18px',
+                background: '#C9A84C',
+                border: 'none',
+                borderRadius: '4px',
+                color: '#080808',
+                fontSize: '10px',
+                letterSpacing: '3px',
+                fontFamily: 'Montserrat',
+                fontWeight: 700,
+                cursor: 'pointer',
+                marginBottom: '16px',
+                transition: 'all 0.2s',
+              }}
+            >
+              {upgradeLoading ? 'REDIRECTING...' : 'UPGRADE TO GROWTH →'}
+            </button>
+            <button
+              onClick={() => setShowUpgradeModal(false)}
+              style={{ background: 'none', border: 'none', color: '#222', fontSize: '11px', fontFamily: 'Montserrat', cursor: 'pointer', letterSpacing: '1px' }}
+            >
+              maybe later
+            </button>
           </div>
-        ) : (
-          <div className="space-y-4">
-            {history.map((post) => (
-              <div key={post.id} className="p-6 border border-gray-100 rounded-2xl bg-white shadow-sm">
-                <span className={`text-xs font-black uppercase px-3 py-1 rounded-full text-white mb-3 inline-block ${
-                  ANGLE_CONFIG[post.narrative_type]?.color || 'bg-gray-400'
-                }`}>
-                  {ANGLE_CONFIG[post.narrative_type]?.label || post.narrative_type}
-                </span>
-                <p className="font-medium text-gray-800 mt-2">{post.content_ai}</p>
-              </div>
-            ))}
-          </div>
-        )}
+        </div>
+      )}
+
+      {/* Footer */}
+      <div style={{ textAlign: 'center', padding: '40px', borderTop: '1px solid #111' }}>
+        <div style={{ fontSize: '9px', letterSpacing: '3px', color: '#1E1E1E', fontFamily: 'Montserrat' }}>
+          GHOSTSAAS © 2026 — AUTHORITY INTELLIGENCE
+        </div>
       </div>
     </div>
   );
