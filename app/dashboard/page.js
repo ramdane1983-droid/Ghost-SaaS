@@ -25,6 +25,21 @@ export default function Dashboard() {
   const [creditsRemaining, setCreditsRemaining] = useState(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [upgradeLoading, setUpgradeLoading] = useState(false);
+  const [sessionEmail, setSessionEmail] = useState('');
+
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        window.location.href = '/login';
+      } else {
+        setSessionEmail(session.user.email);
+        setEmail(session.user.email);
+      }
+    };
+    checkSession();
+    fetchHistory();
+  }, []);
 
   const fetchHistory = async () => {
     const { data, error } = await supabase
@@ -34,8 +49,6 @@ export default function Dashboard() {
     if (error) console.error('Fetch error:', error);
     else setHistory(data || []);
   };
-
-  useEffect(() => { fetchHistory(); }, []);
 
   const handleUpload = async () => {
     if (!file) return alert("Select a video or audio file first");
@@ -114,6 +127,11 @@ export default function Dashboard() {
     setTimeout(() => setCopied(''), 2000);
   };
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    window.location.href = '/login';
+  };
+
   return (
     <div className="min-h-screen bg-white p-10 font-sans">
       <div className="max-w-3xl mx-auto">
@@ -121,13 +139,23 @@ export default function Dashboard() {
         {/* Header */}
         <div className="flex justify-between items-center mb-2">
           <h1 className="text-3xl font-black italic uppercase">GhostSaaS.ai</h1>
-          {creditsRemaining !== null && (
-            <span className="font-black text-sm uppercase bg-black text-white px-4 py-2 rounded-full">
-              {creditsRemaining} credits left
-            </span>
-          )}
+          <div className="flex items-center gap-3">
+            {creditsRemaining !== null && (
+              <span className="font-black text-sm uppercase bg-black text-white px-4 py-2 rounded-full">
+                {creditsRemaining} credits left
+              </span>
+            )}
+            <button
+              onClick={handleLogout}
+              className="text-sm font-black uppercase text-gray-400 hover:text-black"
+            >
+              LOGOUT
+            </button>
+          </div>
         </div>
-        <p className="text-gray-400 font-medium mb-10">Upload a call. Get 3 angles. Choose your weapon.</p>
+        <p className="text-gray-400 font-medium mb-10">
+          {sessionEmail && <span className="text-black font-black">{sessionEmail}</span>} — Upload a call. Get 3 angles. Choose your weapon.
+        </p>
 
         {/* Upgrade Modal */}
         {showUpgradeModal && (
@@ -154,17 +182,6 @@ export default function Dashboard() {
             </div>
           </div>
         )}
-
-        {/* Email Input */}
-        <div className="mb-6">
-          <input
-            type="email"
-            placeholder="Enter your email to get started..."
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full border-2 border-gray-200 rounded-2xl px-6 py-4 font-medium text-lg outline-none focus:border-black transition-all"
-          />
-        </div>
 
         {/* Upload Zone */}
         <div className="border-2 border-black p-8 rounded-[40px] shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] mb-10">
