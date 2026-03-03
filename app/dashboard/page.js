@@ -25,19 +25,8 @@ export default function Dashboard() {
   const [creditsRemaining, setCreditsRemaining] = useState(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [upgradeLoading, setUpgradeLoading] = useState(false);
-  const [sessionEmail, setSessionEmail] = useState('');
 
   useEffect(() => {
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        window.location.href = '/login';
-      } else {
-        setSessionEmail(session.user.email);
-        setEmail(session.user.email);
-      }
-    };
-    checkSession();
     fetchHistory();
   }, []);
 
@@ -127,37 +116,20 @@ export default function Dashboard() {
     setTimeout(() => setCopied(''), 2000);
   };
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    window.location.href = '/login';
-  };
-
   return (
     <div className="min-h-screen bg-white p-10 font-sans">
       <div className="max-w-3xl mx-auto">
 
-        {/* Header */}
         <div className="flex justify-between items-center mb-2">
           <h1 className="text-3xl font-black italic uppercase">GhostSaaS.ai</h1>
-          <div className="flex items-center gap-3">
-            {creditsRemaining !== null && (
-              <span className="font-black text-sm uppercase bg-black text-white px-4 py-2 rounded-full">
-                {creditsRemaining} credits left
-              </span>
-            )}
-            <button
-              onClick={handleLogout}
-              className="text-sm font-black uppercase text-gray-400 hover:text-black"
-            >
-              LOGOUT
-            </button>
-          </div>
+          {creditsRemaining !== null && (
+            <span className="font-black text-sm uppercase bg-black text-white px-4 py-2 rounded-full">
+              {creditsRemaining} credits left
+            </span>
+          )}
         </div>
-        <p className="text-gray-400 font-medium mb-10">
-          {sessionEmail && <span className="text-black font-black">{sessionEmail}</span>} — Upload a call. Get 3 angles. Choose your weapon.
-        </p>
+        <p className="text-gray-400 font-medium mb-10">Upload a call. Get 3 angles. Choose your weapon.</p>
 
-        {/* Upgrade Modal */}
         {showUpgradeModal && (
           <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
             <div className="bg-white rounded-[40px] p-12 max-w-md text-center shadow-2xl">
@@ -183,7 +155,16 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Upload Zone */}
+        <div className="mb-6">
+          <input
+            type="email"
+            placeholder="Enter your email to get started..."
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full border-2 border-gray-200 rounded-2xl px-6 py-4 font-medium text-lg outline-none focus:border-black transition-all"
+          />
+        </div>
+
         <div className="border-2 border-black p-8 rounded-[40px] shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] mb-10">
           <div className="border-4 border-dashed border-gray-200 p-10 rounded-3xl text-center mb-6">
             <input
@@ -209,7 +190,6 @@ export default function Dashboard() {
           </button>
         </div>
 
-        {/* Transcript */}
         {transcript && (
           <div className="mb-8 p-6 bg-gray-50 rounded-2xl border border-gray-200 text-gray-500 text-sm">
             <p className="font-black uppercase mb-2 text-gray-400">Transcript</p>
@@ -217,7 +197,6 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* 3 Angles */}
         {angles && (
           <div className="space-y-6 mb-12">
             <h2 className="text-2xl font-black uppercase">Choose Your Angle</h2>
@@ -252,7 +231,6 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Vault */}
         <h2 className="text-2xl font-black mb-6 uppercase">Vault ({history.length})</h2>
         {history.length === 0 ? (
           <div className="border-2 border-dashed border-gray-200 rounded-[32px] p-12 text-center">
@@ -278,7 +256,6 @@ export default function Dashboard() {
             ))}
           </div>
         )}
-
       </div>
     </div>
   );
