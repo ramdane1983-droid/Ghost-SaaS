@@ -16,43 +16,40 @@ export async function POST(req) {
     const file = formData.get('file');
     const userEmail = formData.get('email');
 
-    if (!userEmail) return NextResponse.json({ error: 'Email requis' }, { status: 400 });
+    if (!userEmail) {
+      return NextResponse.json({ error: 'Email manquant' }, { status: 400 });
+    }
 
-    // 1. RÉCUPÉRATION OU CRÉATION (LE CADEAU DE BIENVENUE)
+    // 1. GESTION DES CRÉDITS (CRÉATION AUTO SI NOUVEAU)
     let { data: creditData } = await supabase
       .from('credits')
       .select('*')
       .eq('user_email', userEmail)
       .maybeSingle();
 
-    // SI NOUVEL UTILISATEUR : On crée ses 3 essais gratuits direct en base
     if (!creditData) {
-      const { data: newUser, error: createError } = await supabase
+      const { data: newEntry, error: insertError } = await supabase
         .from('credits')
-        .insert([{ 
-          user_email: userEmail, 
-          credits_remaining: 3, 
-          plan: 'Starter' 
-        }])
+        .insert([{ user_email: userEmail, credits_remaining: 3, plan: 'free' }])
         .select()
         .single();
       
-      if (createError) throw createError;
-      creditData = newUser;
+      if (insertError) throw insertError;
+      creditData = newEntry;
     }
 
-    // 2. VÉRIFICATION DES CRÉDITS RESTANTS
+    // 2. VÉRIFICATION (DÉCLENCHE STRIPE SI 0)
     if (creditData.credits_remaining <= 0) {
-      // C'est seulement ICI qu'on déclenche Stripe
-      return NextResponse.json({ error: 'UPGRADE_REQUIRED' }, { status: 402 });
+      return NextResponse.json({ error: 'NO_CREDITS' }, { status: 402 });
     }
 
-    // 3. LOGIQUE IA (Transcription + Ghostwriting)
-    let transcript = "Test sans audio";
+    // 3. TRANSCRIPTION
+    let transcript = "Texte test";
     if (file && file.size > 0) {
       const arrayBuffer = await file.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
       const audioFile = new File([buffer], 'audio.mp3', { type: 'audio/mpeg' });
+
       const transcription = await openai.audio.transcriptions.create({
         file: audioFile,
         model: "whisper-1",
@@ -60,27 +57,29 @@ export async function POST(req) {
       transcript = transcription.text;
     }
 
+    // 4. GÉNÉRATION IA
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
-        { role: "system", content: "Tu es GhostSaaS.ai. Ton style est tranchant, direct, sans gras. Narratif SaaS B2B." },
-        { role: "user", content: `Transforme ce transcript en autorité :\n${transcript}` }
+        { role: "system", content: "Tu es GhostSaaS.ai. Ton style est direct et percutant." },
+        { role: "user", content: `Transforme ce transcript :\n${transcript}` }
       ],
     });
 
-    // 4. DÉBIT DU CRÉDIT ET RÉPONSE
-    const { error: updateError } = await supabase
+    // 5. MISE À JOUR BASE DE DONNÉES
+    await supabase
       .from('credits')
       .update({ credits_remaining: creditData.credits_remaining - 1 })
       .eq('user_email', userEmail);
 
     return NextResponse.json({
+      transcript,
       text: completion.choices[0].message.content,
       credits_remaining: creditData.credits_remaining - 1
     });
 
   } catch (error) {
-    console.error('Crash API:', error);
+    console.error('Erreur API:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
