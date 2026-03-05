@@ -20,13 +20,15 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Email manquant' }, { status: 400 });
     }
 
-    // 1. VÉRIFICATION OU CRÉATION AUTOMATIQUE DES CRÉDITS
+    // 1. VÉRIFICATION OU CRÉATION AUTOMATIQUE
+    // On utilise maybeSingle pour éviter de crasher si l'utilisateur n'existe pas
     let { data: creditData } = await supabase
       .from('credits')
       .select('*')
       .eq('user_email', userEmail)
       .maybeSingle();
 
+    // Si l'utilisateur est nouveau, on lui crée 3 crédits gratuits
     if (!creditData) {
       const { data: newEntry, error: insertError } = await supabase
         .from('credits')
@@ -56,7 +58,7 @@ export async function POST(req) {
       transcript = transcription.text;
     }
 
-    // 3. GÉNÉRATION
+    // 3. GÉNÉRATION GHOSTWRITER
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
@@ -65,7 +67,7 @@ export async function POST(req) {
       ],
     });
 
-    // 4. MISE À JOUR CRÉDITS
+    // 4. MISE À JOUR DES CRÉDITS
     await supabase
       .from('credits')
       .update({ credits_remaining: creditData.credits_remaining - 1 })
