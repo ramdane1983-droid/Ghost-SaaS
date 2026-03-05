@@ -20,32 +20,20 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Email manquant' }, { status: 400 });
     }
 
-    // 1. VÉRIFICATION OU CRÉATION AUTOMATIQUE
-    // On utilise maybeSingle pour éviter de crasher si l'utilisateur n'existe pas
-    let { data: creditData } = await supabase
+    // 1. VÉRIFICATION DES CRÉDITS (Version robuste)
+    const { data: creditData, error: dbError } = await supabase
       .from('credits')
       .select('*')
       .eq('user_email', userEmail)
       .maybeSingle();
 
-    // Si l'utilisateur est nouveau, on lui crée 3 crédits gratuits
-    if (!creditData) {
-      const { data: newEntry, error: insertError } = await supabase
-        .from('credits')
-        .insert([{ user_email: userEmail, credits_remaining: 3, plan: 'free' }])
-        .select()
-        .single();
-      
-      if (insertError) throw insertError;
-      creditData = newEntry;
-    }
-
-    if (creditData.credits_remaining <= 0) {
-      return NextResponse.json({ error: 'PLUS_DE_CREDITS' }, { status: 402 });
+    // Si pas de ligne en base ou crédits à 0 => On renvoie 402 (Déclenche Stripe)
+    if (!creditData || creditData.credits_remaining <= 0) {
+      return NextResponse.json({ error: 'NO_CREDITS' }, { status: 402 });
     }
 
     // 2. TRANSCRIPTION
-    let transcript = "Test sans audio";
+    let transcript = "";
     if (file && file.size > 0) {
       const arrayBuffer = await file.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
@@ -62,12 +50,12 @@ export async function POST(req) {
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
-        { role: "system", content: "Tu es un Ghostwriter d'élite. Style direct et brutal." },
+        { role: "system", content: "Tu es un Ghostwriter d'élite. Style direct." },
         { role: "user", content: `Transcript: ${transcript}` }
       ],
     });
 
-    // 4. MISE À JOUR DES CRÉDITS
+    // 4. DÉBIT DU CRÉDIT
     await supabase
       .from('credits')
       .update({ credits_remaining: creditData.credits_remaining - 1 })
@@ -80,7 +68,7 @@ export async function POST(req) {
     });
 
   } catch (error) {
-    console.error('Erreur API:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('Erreur:', error);
+    return NextResponse.json({ error: 'Erreur interne' }, { status: 500 });
   }
 }
