@@ -3,11 +3,12 @@ import OpenAI from 'openai';
 import { createClient } from '@supabase/supabase-js';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
 const supabase = createClient(
   "https://zynnnyxmwbgzbatphpjh.supabase.co",
   process.env.SUPABASE_SERVICE_KEY
 );
+
+export const maxDuration = 60;
 
 export async function POST(req) {
   try {
@@ -16,13 +17,12 @@ export async function POST(req) {
     const userEmail = formData.get('email');
 
     // 1. VÉRIFICATION DES CRÉDITS
-    let { data: creditData, error: creditError } = await supabase
+    let { data: creditData } = await supabase
       .from('credits')
       .select('*')
       .eq('user_email', userEmail)
       .single();
 
-    // Si l'utilisateur n'existe pas encore → on lui crée 3 crédits
     if (!creditData) {
       const { data: newCredit } = await supabase
         .from('credits')
@@ -32,46 +32,68 @@ export async function POST(req) {
       creditData = newCredit;
     }
 
-    // Si 0 crédits → on bloque
     if (creditData.credits_remaining <= 0 && creditData.plan === 'free') {
       return NextResponse.json({ error: 'NO_CREDITS' }, { status: 402 });
     }
 
-    // 2. TRANSCRIPTION WHISPER
+    // 2. TRANSCRIPTION WHISPER (audio + vidéo)
     let transcript = "";
     if (file) {
+      const arrayBuffer = await file.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+
+      const fileName = file.name || 'audio.mp4';
+      const mimeType = file.type || 'audio/mp4';
+
+      const blob = new Blob([buffer], { type: mimeType });
+      const audioFile = new File([blob], fileName, { type: mimeType });
+
       const transcription = await openai.audio.transcriptions.create({
-        file: file,
+        file: audioFile,
         model: "whisper-1",
       });
       transcript = transcription.text;
     }
 
     // 3. GÉNÉRATION 3 ANGLES
+    const systemBase = `You are an elite ghostwriter for B2B SaaS founders on LinkedIn.
+Your posts are viral, authentic, and position the founder as an authority.
+Rules:
+- One sentence per line maximum
+- Short punchy paragraphs
+- No emojis
+- No hashtags
+- Hook must stop the scroll in the first line
+- End with a question or strong CTA
+- Write in first person as the founder`;
+
     const [rant, lesson, vision] = await Promise.all([
       openai.chat.completions.create({
         model: "gpt-4o",
         messages: [
-          { role: "system", content: "Elite ghostwriter for B2B SaaS founders. Write a RANT. Brutal, provocative, contrarian. One sentence per line. Zero emojis." },
-          { role: "user", content: `Transform into LinkedIn RANT: ${transcript}` }
+          { role: "system", content: `${systemBase}\n\nWrite a RANT angle. Brutal, provocative, contrarian. Challenge the status quo. Make people uncomfortable in a good way.` },
+          { role: "user", content: `Transform this transcript into a LinkedIn RANT post:\n\n${transcript}` }
         ],
         temperature: 0.9,
+        max_tokens: 500,
       }),
       openai.chat.completions.create({
         model: "gpt-4o",
         messages: [
-          { role: "system", content: "Elite ghostwriter for B2B SaaS founders. Write a LESSON. Educational, actionable, clear. Make the founder look smart." },
-          { role: "user", content: `Transform into LinkedIn LESSON: ${transcript}` }
+          { role: "system", content: `${systemBase}\n\nWrite a LESSON angle. Educational, actionable, step-by-step insight. Make the founder look brilliant and generous.` },
+          { role: "user", content: `Transform this transcript into a LinkedIn LESSON post:\n\n${transcript}` }
         ],
         temperature: 0.7,
+        max_tokens: 500,
       }),
       openai.chat.completions.create({
         model: "gpt-4o",
         messages: [
-          { role: "system", content: "Elite ghostwriter for B2B SaaS founders. Write a VISION. Bold, forward-thinking, inspiring. Make them look visionary." },
-          { role: "user", content: `Transform into LinkedIn VISION: ${transcript}` }
+          { role: "system", content: `${systemBase}\n\nWrite a VISION angle. Bold, forward-thinking, inspiring. Paint a picture of the future. Make the founder look visionary.` },
+          { role: "user", content: `Transform this transcript into a LinkedIn VISION post:\n\n${transcript}` }
         ],
         temperature: 0.8,
+        max_tokens: 500,
       }),
     ]);
 
@@ -92,7 +114,7 @@ export async function POST(req) {
     });
 
   } catch (error) {
-    console.error(error);
+    console.error('API Error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
