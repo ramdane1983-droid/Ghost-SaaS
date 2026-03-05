@@ -20,14 +20,14 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Email manquant' }, { status: 400 });
     }
 
-    // 1. VÉRIFICATION OU CRÉATION DES CRÉDITS
-    let { data: creditData, error: fetchError } = await supabase
+    // 1. VÉRIFICATION OU CRÉATION AUTOMATIQUE DES CRÉDITS
+    let { data: creditData } = await supabase
       .from('credits')
       .select('*')
       .eq('user_email', userEmail)
       .maybeSingle();
 
-    // Si l'utilisateur n'existe pas, on le crée ici
+    // SI L'UTILISATEUR N'EXISTE PAS, ON LE CRÉE AVEC 3 CRÉDITS
     if (!creditData) {
       const { data: newEntry, error: insertError } = await supabase
         .from('credits')
@@ -35,6 +35,7 @@ export async function POST(req) {
         .select()
         .single();
       
+      if (insertError) throw insertError;
       creditData = newEntry;
     }
 
@@ -43,8 +44,8 @@ export async function POST(req) {
     }
 
     // 2. TRANSCRIPTION
-    let transcript = "";
-    if (file) {
+    let transcript = "Texte test sans audio";
+    if (file && file.size > 0) {
       const arrayBuffer = await file.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
       const audioFile = new File([buffer], 'audio.mp3', { type: 'audio/mpeg' });
@@ -56,18 +57,16 @@ export async function POST(req) {
       transcript = transcription.text;
     }
 
-    // 3. GÉNÉRATION (PROMPT ÉLITE)
-    const systemBase = `Tu es le Ghostwriter d'élite. Style : Brut, Phrases courtes, Impact maximum.`;
-
+    // 3. GÉNÉRATION GHOSTWRITER
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
-        { role: "system", content: systemBase },
-        { role: "user", content: `Transforme ce transcript :\n${transcript}` }
+        { role: "system", content: "Tu es un Ghostwriter d'élite. Style direct et brutal." },
+        { role: "user", content: `Transcript: ${transcript}` }
       ],
     });
 
-    // 4. MISE À JOUR CRÉDITS
+    // 4. MISE À JOUR DES CRÉDITS (-1)
     await supabase
       .from('credits')
       .update({ credits_remaining: creditData.credits_remaining - 1 })
@@ -75,12 +74,12 @@ export async function POST(req) {
 
     return NextResponse.json({
       transcript,
-      credits_remaining: creditData.credits_remaining - 1,
-      text: completion.choices[0].message.content
+      text: completion.choices[0].message.content,
+      credits_remaining: creditData.credits_remaining - 1
     });
 
   } catch (error) {
-    console.error('Erreur:', error);
+    console.error('Erreur API:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
