@@ -17,39 +17,32 @@ export async function POST(req) {
     const userEmail = formData.get('email');
 
     if (!userEmail) {
-      return NextResponse.json({ error: 'EMAIL_REQUIRED' }, { status: 400 });
+      return NextResponse.json({ error: 'Email manquant' }, { status: 400 });
     }
 
-    // 1. VÉRIFICATION OU CRÉATION DE L'UTILISATEUR
-    // .maybeSingle() évite l'erreur si l'email n'existe pas encore
+    // 1. VÉRIFICATION OU CRÉATION DES CRÉDITS
     let { data: creditData, error: fetchError } = await supabase
       .from('credits')
       .select('*')
       .eq('user_email', userEmail)
       .maybeSingle();
 
-    // Si l'utilisateur est inconnu, on le crée immédiatement
+    // Si l'utilisateur n'existe pas, on le crée ici
     if (!creditData) {
       const { data: newEntry, error: insertError } = await supabase
         .from('credits')
-        .insert([{ 
-          user_email: userEmail, 
-          credits_remaining: 3, 
-          plan: 'free' 
-        }])
+        .insert([{ user_email: userEmail, credits_remaining: 3, plan: 'free' }])
         .select()
         .single();
       
-      if (insertError) throw insertError;
       creditData = newEntry;
     }
 
-    // Vérification des crédits restants
     if (creditData.credits_remaining <= 0) {
-      return NextResponse.json({ error: 'NO_CREDITS' }, { status: 402 });
+      return NextResponse.json({ error: 'PLUS_DE_CREDITS' }, { status: 402 });
     }
 
-    // 2. TRANSCRIPTION WHISPER
+    // 2. TRANSCRIPTION
     let transcript = "";
     if (file) {
       const arrayBuffer = await file.arrayBuffer();
@@ -63,41 +56,18 @@ export async function POST(req) {
       transcript = transcription.text;
     }
 
-    // 3. GÉNÉRATION DES 3 ANGLES (GHOSTWRITER MODE)
-    const systemBase = `Tu es le Ghostwriter d'élite des fondateurs SaaS B2B.
-Ton objectif : Transformer un transcript en une pièce d'autorité brute.
-- Pas d'introduction polie. Phrases courtes. Impact maximum.
-- Utilise le "Je". Un saut de ligne entre chaque phrase.
-STRUCTURE : Accroche choc > Preuve concrète > Conseil actionnable > Question ouverte.`;
+    // 3. GÉNÉRATION (PROMPT ÉLITE)
+    const systemBase = `Tu es le Ghostwriter d'élite. Style : Brut, Phrases courtes, Impact maximum.`;
 
-    const [rant, lesson, vision] = await Promise.all([
-      openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          { role: "system", content: `${systemBase}\nAngle: RANT (Provocateur et brutal).` },
-          { role: "user", content: `Transcript:\n${transcript}` }
-        ],
-        temperature: 0.9,
-      }),
-      openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          { role: "system", content: `${systemBase}\nAngle: LESSON (Éducatif et valeur).` },
-          { role: "user", content: `Transcript:\n${transcript}` }
-        ],
-        temperature: 0.7,
-      }),
-      openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          { role: "system", content: `${systemBase}\nAngle: VISION (Leadership et futur).` },
-          { role: "user", content: `Transcript:\n${transcript}` }
-        ],
-        temperature: 0.8,
-      }),
-    ]);
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: systemBase },
+        { role: "user", content: `Transforme ce transcript :\n${transcript}` }
+      ],
+    });
 
-    // 4. MISE À JOUR DES CRÉDITS (-1)
+    // 4. MISE À JOUR CRÉDITS
     await supabase
       .from('credits')
       .update({ credits_remaining: creditData.credits_remaining - 1 })
@@ -106,15 +76,11 @@ STRUCTURE : Accroche choc > Preuve concrète > Conseil actionnable > Question ou
     return NextResponse.json({
       transcript,
       credits_remaining: creditData.credits_remaining - 1,
-      angles: {
-        rant: rant.choices[0].message.content,
-        lesson: lesson.choices[0].message.content,
-        vision: vision.choices[0].message.content,
-      }
+      text: completion.choices[0].message.content
     });
 
   } catch (error) {
-    console.error('API Error:', error);
+    console.error('Erreur:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
