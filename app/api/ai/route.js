@@ -18,42 +18,62 @@ export async function POST(req) {
 
     if (!userEmail) return NextResponse.json({ error: 'Email manquant' }, { status: 400 });
 
-    // 1. RECHERCHE DE L'UTILISATEUR
-    let { data: creditData, error: fetchError } = await supabase
+    let { data: creditData } = await supabase
       .from('credits')
       .select('*')
       .eq('user_email', userEmail)
       .maybeSingle();
 
-    // 2. SI INEXISTANT : TENTATIVE DE CRÉATION AVEC LOG D'ERREUR
     if (!creditData) {
-      console.log("Tentative de création pour:", userEmail);
       const { data: newEntry, error: insertError } = await supabase
         .from('credits')
-        .insert([{ 
-          user_email: userEmail, 
-          credits_remaining: 3, 
-          plan: 'free' 
-        }])
+        .insert([{ user_email: userEmail, credits_remaining: 3, plan: 'free' }])
         .select()
         .single();
       
-      if (insertError) {
-        // C'EST ICI QUE ÇA COINCE SUREMENT
-        console.error("ERREUR SUPABASE INSERTION:", insertError);
-        return NextResponse.json({ error: `Erreur base de données: ${insertError.message}` }, { status: 500 });
-      }
+      if (insertError) throw insertError;
       creditData = newEntry;
-    }
-
-    // 3. VÉRIFICATION FINALE AVANT UTILISATION
-    if (!creditData) {
-      return NextResponse.json({ error: "Impossible de créer ou trouver l'utilisateur" }, { status: 500 });
     }
 
     if (creditData.credits_remaining <= 0) {
       return NextResponse.json({ error: 'NO_CREDITS' }, { status: 402 });
     }
 
-    // ... (Le reste du code transcription/IA est identique)
-    // Assure-toi de bien garder la fin du code avec le bloc 'return NextResponse.json'
+    let transcript = "";
+    if (file && file.size > 0) {
+      const arrayBuffer = await file.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      const audioFile = new File([buffer], 'audio.mp3', { type: 'audio/mpeg' });
+      const transcription = await openai.audio.transcriptions.create({
+        file: audioFile,
+        model: "whisper-1",
+      });
+      transcript = transcription.text;
+    }
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: "Tu es GhostSaaS.ai, un Ghostwriter d'élite pour fondateurs SaaS B2B. Style direct et percutant." },
+        { role: "user", content: `Transforme ce transcript :\n${transcript}` }
+      ],
+    });
+
+    const { error: updateError } = await supabase
+      .from('credits')
+      .update({ credits_remaining: creditData.credits_remaining - 1 })
+      .eq('user_email', userEmail);
+
+    if (updateError) throw updateError;
+
+    return NextResponse.json({
+      transcript,
+      text: completion.choices[0].message.content,
+      credits_remaining: creditData.credits_remaining - 1
+    });
+
+  } catch (error) {
+    console.error('Erreur API:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
