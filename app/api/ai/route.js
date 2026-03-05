@@ -1,14 +1,15 @@
+//Mise à jour pour activation Stripe
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { createClient } from '@supabase/supabase-js';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const supabase = createClient(
-  "https://zynnnyxmwbgzbatphpjh.supabase.co",
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_KEY
 );
 
-export const maxDuration = 60;
+export const maxDuration = 60; // Important pour éviter les coupures Vercel
 
 export async function POST(req) {
   try {
@@ -36,17 +37,12 @@ export async function POST(req) {
       return NextResponse.json({ error: 'NO_CREDITS' }, { status: 402 });
     }
 
-    // 2. TRANSCRIPTION WHISPER (audio + vidéo)
+    // 2. TRANSCRIPTION WHISPER
     let transcript = "";
     if (file) {
       const arrayBuffer = await file.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
-
-      const fileName = file.name || 'audio.mp4';
-      const mimeType = file.type || 'audio/mp4';
-
-      const blob = new Blob([buffer], { type: mimeType });
-      const audioFile = new File([blob], fileName, { type: mimeType });
+      const audioFile = new File([buffer], 'audio.mp3', { type: 'audio/mpeg' });
 
       const transcription = await openai.audio.transcriptions.create({
         file: audioFile,
@@ -55,45 +51,39 @@ export async function POST(req) {
       transcript = transcription.text;
     }
 
-    // 3. GÉNÉRATION 3 ANGLES
-    const systemBase = `You are an elite ghostwriter for B2B SaaS founders on LinkedIn.
-Your posts are viral, authentic, and position the founder as an authority.
-Rules:
-- One sentence per line maximum
-- Short punchy paragraphs
-- No emojis
-- No hashtags
-- Hook must stop the scroll in the first line
-- End with a question or strong CTA
-- Write in first person as the founder`;
+    // 3. GÉNÉRATION 3 ANGLES (PROMPT ÉLITE)
+    const systemBase = `Tu es le Ghostwriter d'élite des fondateurs SaaS B2B à succès.
+Ton objectif : Transformer un transcript en une pièce d'autorité brute et clivante.
+- Pas d'introduction polie.
+- Phrases courtes. Rythme saccadé. Impact maximum.
+- Utilise le "Je".
+- Un saut de ligne entre chaque phrase.
+STRUCTURE : Accroche choc > Preuve concrète du transcript > Conseil actionnable > Question ouverte.`;
 
     const [rant, lesson, vision] = await Promise.all([
       openai.chat.completions.create({
         model: "gpt-4o",
         messages: [
-          { role: "system", content: `${systemBase}\n\nWrite a RANT angle. Brutal, provocative, contrarian. Challenge the status quo. Make people uncomfortable in a good way.` },
-          { role: "user", content: `Transform this transcript into a LinkedIn RANT post:\n\n${transcript}` }
+          { role: "system", content: `${systemBase}\nAngle: RANT (Provocateur, brutal, contre-courant).` },
+          { role: "user", content: `Transcript:\n${transcript}` }
         ],
         temperature: 0.9,
-        max_tokens: 500,
       }),
       openai.chat.completions.create({
         model: "gpt-4o",
         messages: [
-          { role: "system", content: `${systemBase}\n\nWrite a LESSON angle. Educational, actionable, step-by-step insight. Make the founder look brilliant and generous.` },
-          { role: "user", content: `Transform this transcript into a LinkedIn LESSON post:\n\n${transcript}` }
+          { role: "system", content: `${systemBase}\nAngle: LESSON (Éducatif, étape par étape, valeur pure).` },
+          { role: "user", content: `Transcript:\n${transcript}` }
         ],
         temperature: 0.7,
-        max_tokens: 500,
       }),
       openai.chat.completions.create({
         model: "gpt-4o",
         messages: [
-          { role: "system", content: `${systemBase}\n\nWrite a VISION angle. Bold, forward-thinking, inspiring. Paint a picture of the future. Make the founder look visionary.` },
-          { role: "user", content: `Transform this transcript into a LinkedIn VISION post:\n\n${transcript}` }
+          { role: "system", content: `${systemBase}\nAngle: VISION (Inspirant, futur du marché, leadership).` },
+          { role: "user", content: `Transcript:\n${transcript}` }
         ],
         temperature: 0.8,
-        max_tokens: 500,
       }),
     ]);
 
