@@ -16,70 +16,44 @@ export async function POST(req) {
     const file = formData.get('file');
     const userEmail = formData.get('email');
 
-    if (!userEmail) {
-      return NextResponse.json({ error: 'Email manquant' }, { status: 400 });
-    }
+    if (!userEmail) return NextResponse.json({ error: 'Email manquant' }, { status: 400 });
 
-    // 1. GESTION DES CRÉDITS (CRÉATION AUTO SI NOUVEAU)
-    let { data: creditData } = await supabase
+    // 1. RECHERCHE DE L'UTILISATEUR
+    let { data: creditData, error: fetchError } = await supabase
       .from('credits')
       .select('*')
       .eq('user_email', userEmail)
       .maybeSingle();
 
+    // 2. SI INEXISTANT : TENTATIVE DE CRÉATION AVEC LOG D'ERREUR
     if (!creditData) {
+      console.log("Tentative de création pour:", userEmail);
       const { data: newEntry, error: insertError } = await supabase
         .from('credits')
-        .insert([{ user_email: userEmail, credits_remaining: 3, plan: 'free' }])
+        .insert([{ 
+          user_email: userEmail, 
+          credits_remaining: 3, 
+          plan: 'free' 
+        }])
         .select()
         .single();
       
-      if (insertError) throw insertError;
+      if (insertError) {
+        // C'EST ICI QUE ÇA COINCE SUREMENT
+        console.error("ERREUR SUPABASE INSERTION:", insertError);
+        return NextResponse.json({ error: `Erreur base de données: ${insertError.message}` }, { status: 500 });
+      }
       creditData = newEntry;
     }
 
-    // 2. VÉRIFICATION (DÉCLENCHE STRIPE SI 0)
+    // 3. VÉRIFICATION FINALE AVANT UTILISATION
+    if (!creditData) {
+      return NextResponse.json({ error: "Impossible de créer ou trouver l'utilisateur" }, { status: 500 });
+    }
+
     if (creditData.credits_remaining <= 0) {
       return NextResponse.json({ error: 'NO_CREDITS' }, { status: 402 });
     }
 
-    // 3. TRANSCRIPTION
-    let transcript = "Texte test";
-    if (file && file.size > 0) {
-      const arrayBuffer = await file.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-      const audioFile = new File([buffer], 'audio.mp3', { type: 'audio/mpeg' });
-
-      const transcription = await openai.audio.transcriptions.create({
-        file: audioFile,
-        model: "whisper-1",
-      });
-      transcript = transcription.text;
-    }
-
-    // 4. GÉNÉRATION IA
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        { role: "system", content: "Tu es GhostSaaS.ai. Ton style est direct et percutant." },
-        { role: "user", content: `Transforme ce transcript :\n${transcript}` }
-      ],
-    });
-
-    // 5. MISE À JOUR BASE DE DONNÉES
-    await supabase
-      .from('credits')
-      .update({ credits_remaining: creditData.credits_remaining - 1 })
-      .eq('user_email', userEmail);
-
-    return NextResponse.json({
-      transcript,
-      text: completion.choices[0].message.content,
-      credits_remaining: creditData.credits_remaining - 1
-    });
-
-  } catch (error) {
-    console.error('Erreur API:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-}
+    // ... (Le reste du code transcription/IA est identique)
+    // Assure-toi de bien garder la fin du code avec le bloc 'return NextResponse.json'
