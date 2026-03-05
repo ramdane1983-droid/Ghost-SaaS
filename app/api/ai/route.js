@@ -1,4 +1,3 @@
-//Mise à jour pour activation Stripe
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { createClient } from '@supabase/supabase-js';
@@ -9,7 +8,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY
 );
 
-export const maxDuration = 60; // Important pour éviter les coupures Vercel
+export const maxDuration = 60; 
 
 export async function POST(req) {
   try {
@@ -17,23 +16,36 @@ export async function POST(req) {
     const file = formData.get('file');
     const userEmail = formData.get('email');
 
-    // 1. VÉRIFICATION DES CRÉDITS
-    let { data: creditData } = await supabase
+    if (!userEmail) {
+      return NextResponse.json({ error: 'EMAIL_REQUIRED' }, { status: 400 });
+    }
+
+    // 1. VÉRIFICATION OU CRÉATION DE L'UTILISATEUR
+    // .maybeSingle() évite l'erreur si l'email n'existe pas encore
+    let { data: creditData, error: fetchError } = await supabase
       .from('credits')
       .select('*')
       .eq('user_email', userEmail)
-      .single();
+      .maybeSingle();
 
+    // Si l'utilisateur est inconnu, on le crée immédiatement
     if (!creditData) {
-      const { data: newCredit } = await supabase
+      const { data: newEntry, error: insertError } = await supabase
         .from('credits')
-        .insert([{ user_email: userEmail, credits_remaining: 3, plan: 'free' }])
+        .insert([{ 
+          user_email: userEmail, 
+          credits_remaining: 3, 
+          plan: 'free' 
+        }])
         .select()
         .single();
-      creditData = newCredit;
+      
+      if (insertError) throw insertError;
+      creditData = newEntry;
     }
 
-    if (creditData.credits_remaining <= 0 && creditData.plan === 'free') {
+    // Vérification des crédits restants
+    if (creditData.credits_remaining <= 0) {
       return NextResponse.json({ error: 'NO_CREDITS' }, { status: 402 });
     }
 
@@ -51,20 +63,18 @@ export async function POST(req) {
       transcript = transcription.text;
     }
 
-    // 3. GÉNÉRATION 3 ANGLES (PROMPT ÉLITE)
-    const systemBase = `Tu es le Ghostwriter d'élite des fondateurs SaaS B2B à succès.
-Ton objectif : Transformer un transcript en une pièce d'autorité brute et clivante.
-- Pas d'introduction polie.
-- Phrases courtes. Rythme saccadé. Impact maximum.
-- Utilise le "Je".
-- Un saut de ligne entre chaque phrase.
-STRUCTURE : Accroche choc > Preuve concrète du transcript > Conseil actionnable > Question ouverte.`;
+    // 3. GÉNÉRATION DES 3 ANGLES (GHOSTWRITER MODE)
+    const systemBase = `Tu es le Ghostwriter d'élite des fondateurs SaaS B2B.
+Ton objectif : Transformer un transcript en une pièce d'autorité brute.
+- Pas d'introduction polie. Phrases courtes. Impact maximum.
+- Utilise le "Je". Un saut de ligne entre chaque phrase.
+STRUCTURE : Accroche choc > Preuve concrète > Conseil actionnable > Question ouverte.`;
 
     const [rant, lesson, vision] = await Promise.all([
       openai.chat.completions.create({
         model: "gpt-4o",
         messages: [
-          { role: "system", content: `${systemBase}\nAngle: RANT (Provocateur, brutal, contre-courant).` },
+          { role: "system", content: `${systemBase}\nAngle: RANT (Provocateur et brutal).` },
           { role: "user", content: `Transcript:\n${transcript}` }
         ],
         temperature: 0.9,
@@ -72,7 +82,7 @@ STRUCTURE : Accroche choc > Preuve concrète du transcript > Conseil actionnable
       openai.chat.completions.create({
         model: "gpt-4o",
         messages: [
-          { role: "system", content: `${systemBase}\nAngle: LESSON (Éducatif, étape par étape, valeur pure).` },
+          { role: "system", content: `${systemBase}\nAngle: LESSON (Éducatif et valeur).` },
           { role: "user", content: `Transcript:\n${transcript}` }
         ],
         temperature: 0.7,
@@ -80,14 +90,14 @@ STRUCTURE : Accroche choc > Preuve concrète du transcript > Conseil actionnable
       openai.chat.completions.create({
         model: "gpt-4o",
         messages: [
-          { role: "system", content: `${systemBase}\nAngle: VISION (Inspirant, futur du marché, leadership).` },
+          { role: "system", content: `${systemBase}\nAngle: VISION (Leadership et futur).` },
           { role: "user", content: `Transcript:\n${transcript}` }
         ],
         temperature: 0.8,
       }),
     ]);
 
-    // 4. DÉCRÉMENTER LES CRÉDITS
+    // 4. MISE À JOUR DES CRÉDITS (-1)
     await supabase
       .from('credits')
       .update({ credits_remaining: creditData.credits_remaining - 1 })
