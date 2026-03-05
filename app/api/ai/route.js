@@ -27,7 +27,6 @@ export async function POST(req) {
       .eq('user_email', userEmail)
       .maybeSingle();
 
-    // SI L'UTILISATEUR N'EXISTE PAS, ON LE CRÉE AVEC 3 CRÉDITS
     if (!creditData) {
       const { data: newEntry, error: insertError } = await supabase
         .from('credits')
@@ -44,7 +43,7 @@ export async function POST(req) {
     }
 
     // 2. TRANSCRIPTION
-    let transcript = "Texte test sans audio";
+    let transcript = "Test sans audio";
     if (file && file.size > 0) {
       const arrayBuffer = await file.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
@@ -57,7 +56,7 @@ export async function POST(req) {
       transcript = transcription.text;
     }
 
-    // 3. GÉNÉRATION GHOSTWRITER
+    // 3. GÉNÉRATION
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
@@ -66,7 +65,7 @@ export async function POST(req) {
       ],
     });
 
-    // 4. MISE À JOUR DES CRÉDITS (-1)
+    // 4. MISE À JOUR CRÉDITS
     await supabase
       .from('credits')
       .update({ credits_remaining: creditData.credits_remaining - 1 })
