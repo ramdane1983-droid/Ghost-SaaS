@@ -57,7 +57,36 @@ export async function POST(req) {
     if (file && file.size > 0) {
       const arrayBuffer = await file.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
-      const audioFile = new File([buffer], 'audio.mp4', { type: 'video/mp4' });
+
+      // Détecter le bon format selon l'extension
+      const fileName = file.name?.toLowerCase() || '';
+      let audioFileName = 'audio.mp4';
+      let audioMimeType = 'video/mp4';
+
+      if (fileName.endsWith('.mp3')) {
+        audioFileName = 'audio.mp3';
+        audioMimeType = 'audio/mpeg';
+      } else if (fileName.endsWith('.wav')) {
+        audioFileName = 'audio.wav';
+        audioMimeType = 'audio/wav';
+      } else if (fileName.endsWith('.m4a')) {
+        audioFileName = 'audio.m4a';
+        audioMimeType = 'audio/mp4';
+      } else if (fileName.endsWith('.webm')) {
+        audioFileName = 'audio.webm';
+        audioMimeType = 'audio/webm';
+      } else if (fileName.endsWith('.ogg')) {
+        audioFileName = 'audio.ogg';
+        audioMimeType = 'audio/ogg';
+      } else if (fileName.endsWith('.mov')) {
+        audioFileName = 'audio.mp4';
+        audioMimeType = 'video/mp4';
+      } else if (fileName.endsWith('.mpeg') || fileName.endsWith('.mpga')) {
+        audioFileName = 'audio.mpeg';
+        audioMimeType = 'audio/mpeg';
+      }
+
+      const audioFile = new File([buffer], audioFileName, { type: audioMimeType });
 
       const transcription = await openai.audio.transcriptions.create({
         file: audioFile,
