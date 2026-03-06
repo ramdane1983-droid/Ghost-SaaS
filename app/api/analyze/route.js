@@ -2,10 +2,8 @@ import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { createClient } from '@supabase/supabase-js';
 
-export const runtime = "nodejs";
-export const maxDuration = 60;
-
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
 const supabase = createClient(
   "https://zynnnyxmwbgzbatphpjh.supabase.co",
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp5bm5ueXhtd2JnemJhdHBocGpoIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjEwOTUzNiwiZXhwIjoyMDg3Njg1NTM2fQ.Z2WF1be5gp00z1w5wtZppv4832m8RKws-87Ju4pw1rM"
@@ -13,143 +11,113 @@ const supabase = createClient(
 
 export async function POST(req) {
   try {
-    const formData = await req.formData();
-    const file = formData.get('file');
-    const userEmail = formData.get('email');
+    const { fileUrl, email } = await req.json();
 
-    if (!userEmail) {
-      return NextResponse.json({ error: 'EMAIL_REQUIRED' }, { status: 400 });
+    if (!fileUrl || !email) {
+      return NextResponse.json({ error: 'Missing fileUrl or email' }, { status: 400 });
     }
 
-    // 1. VÉRIFICATION DES CRÉDITS
-    let { data: creditData, error: fetchError } = await supabase
-      .from('credits')
+    // 1. Vérifier les crédits
+    let { data: user } = await supabase
+      .from('users')
       .select('*')
-      .eq('user_email', userEmail)
-      .maybeSingle();
+      .eq('email', email)
+      .single();
 
-    if (!creditData) {
-      const { data: newCredit, error: insertError } = await supabase
-        .from('credits')
-        .insert([{ user_email: userEmail, credits_remaining: 3, plan: 'free' }])
+    if (!user) {
+      const { data: newUser } = await supabase
+        .from('users')
+        .insert([{ email, credits: 3 }])
         .select()
         .single();
-
-      if (insertError || !newCredit) {
-        return NextResponse.json({
-          error: 'Impossible de créer les crédits: ' + (insertError?.message || 'null result'),
-        }, { status: 500 });
-      }
-
-      creditData = newCredit;
+      user = newUser;
     }
 
-    if (creditData.credits_remaining <= 0) {
-      return NextResponse.json({ error: 'NO_CREDITS' }, { status: 402 });
+    if (user.credits <= 0 && !user.is_pro) {
+      return NextResponse.json({ error: 'NO_CREDITS' }, { status: 200 });
     }
 
-    // 2. TRANSCRIPTION WHISPER
-    let transcript = "";
-    if (file && file.size > 0) {
-      const arrayBuffer = await file.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
+    // 2. Télécharger le fichier depuis Supabase Storage
+    const response = await fetch(fileUrl);
+    if (!response.ok) throw new Error('Failed to fetch file from storage');
 
-      // Whisper supporte: mp3, mp4, mpeg, mpga, m4a, wav, webm
-      // Pour MOV et MP4 → forcer en mp4
-      // Pour tout autre format → garder tel quel
-      const originalName = file.name?.toLowerCase() || '';
-      
-      let whisperFile;
-      
-      if (originalName.endsWith('.mov')) {
-        // MOV → renommer en mp4, Whisper peut décoder le container
-        whisperFile = new File([buffer], 'audio.mp4', { type: 'video/mp4' });
-      } else if (originalName.endsWith('.mp4')) {
-        whisperFile = new File([buffer], 'audio.mp4', { type: 'video/mp4' });
-      } else if (originalName.endsWith('.mp3')) {
-        whisperFile = new File([buffer], 'audio.mp3', { type: 'audio/mpeg' });
-      } else if (originalName.endsWith('.wav')) {
-        whisperFile = new File([buffer], 'audio.wav', { type: 'audio/wav' });
-      } else if (originalName.endsWith('.m4a')) {
-        whisperFile = new File([buffer], 'audio.m4a', { type: 'audio/x-m4a' });
-      } else if (originalName.endsWith('.webm')) {
-        whisperFile = new File([buffer], 'audio.webm', { type: 'audio/webm' });
-      } else if (originalName.endsWith('.ogg')) {
-        whisperFile = new File([buffer], 'audio.ogg', { type: 'audio/ogg' });
-      } else {
-        // Par défaut → mp4
-        whisperFile = new File([buffer], 'audio.mp4', { type: 'video/mp4' });
-      }
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
 
-      console.log('Sending to Whisper:', whisperFile.name, whisperFile.type, whisperFile.size);
+    // 3. Détecter l'extension
+    const urlParts = fileUrl.split('.');
+    const ext = urlParts[urlParts.length - 1].split('?')[0].toLowerCase();
 
-      const transcription = await openai.audio.transcriptions.create({
-        file: whisperFile,
-        model: "whisper-1",
-      });
-      transcript = transcription.text;
+    const mimeTypes = {
+      'mp4': 'video/mp4',
+      'mov': 'video/mp4',
+      'mp3': 'audio/mpeg',
+      'wav': 'audio/wav',
+      'm4a': 'audio/mp4',
+      'webm': 'audio/webm',
+    };
+
+    const mimeType = mimeTypes[ext] || 'audio/mpeg';
+    const fileName = `audio.${ext === 'mov' ? 'mp4' : ext}`;
+
+    // 4. Créer un File object pour Whisper
+    const file = new File([buffer], fileName, { type: mimeType });
+
+    // 5. Transcrire avec Whisper
+    const transcription = await openai.audio.transcriptions.create({
+      file,
+      model: 'whisper-1',
+      language: 'fr',
+    });
+
+    const transcript = transcription.text;
+
+    // 6. Générer 3 angles avec GPT-4o
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        {
+          role: 'system',
+          content: `You are a world-class LinkedIn ghostwriter for SaaS founders. 
+Generate 3 distinct strategic LinkedIn post angles from the transcript.
+Respond ONLY with valid JSON, no markdown, no backticks.
+Format: {"rant": "post text", "lesson": "post text", "vision": "post text"}
+
+RANT: Provocative, contrarian, challenges conventional wisdom. Start with a bold statement.
+LESSON: Educational, actionable, teaches something specific. Use numbered insights.
+VISION: Inspirational, future-focused, paints a picture of what's possible.
+
+Each post: 150-250 words, LinkedIn-optimized, engaging hook, no hashtags.`
+        },
+        {
+          role: 'user',
+          content: `Transform this transcript into 3 LinkedIn angles:\n\n${transcript}`
+        }
+      ],
+      temperature: 0.8,
+      max_tokens: 2000,
+    });
+
+    const raw = completion.choices[0].message.content;
+    const clean = raw.replace(/```json|```/g, '').trim();
+    const angles = JSON.parse(clean);
+
+    // 7. Décrémenter les crédits
+    if (!user.is_pro) {
+      await supabase
+        .from('users')
+        .update({ credits: user.credits - 1 })
+        .eq('email', email);
     }
-
-    // 3. GÉNÉRATION 3 ANGLES
-    const systemBase = `You are an elite ghostwriter for B2B SaaS founders on LinkedIn.
-Your posts are viral, authentic, and position the founder as an authority.
-Rules:
-- One sentence per line maximum
-- Short punchy paragraphs
-- No emojis
-- No hashtags
-- Hook must stop the scroll in the first line
-- End with a question or strong CTA
-- Write in first person as the founder`;
-
-    const [rant, lesson, vision] = await Promise.all([
-      openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          { role: "system", content: `${systemBase}\n\nWrite a RANT angle. Brutal, provocative, contrarian. Challenge the status quo.` },
-          { role: "user", content: `Transform this transcript into a LinkedIn RANT post:\n\n${transcript}` }
-        ],
-        temperature: 0.9,
-        max_tokens: 500,
-      }),
-      openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          { role: "system", content: `${systemBase}\n\nWrite a LESSON angle. Educational, actionable, step-by-step insight.` },
-          { role: "user", content: `Transform this transcript into a LinkedIn LESSON post:\n\n${transcript}` }
-        ],
-        temperature: 0.7,
-        max_tokens: 500,
-      }),
-      openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          { role: "system", content: `${systemBase}\n\nWrite a VISION angle. Bold, forward-thinking, inspiring. Paint a picture of the future.` },
-          { role: "user", content: `Transform this transcript into a LinkedIn VISION post:\n\n${transcript}` }
-        ],
-        temperature: 0.8,
-        max_tokens: 500,
-      }),
-    ]);
-
-    // 4. DÉCRÉMENTER LES CRÉDITS
-    await supabase
-      .from('credits')
-      .update({ credits_remaining: creditData.credits_remaining - 1 })
-      .eq('user_email', userEmail);
 
     return NextResponse.json({
       transcript,
-      credits_remaining: creditData.credits_remaining - 1,
-      angles: {
-        rant: rant.choices[0].message.content,
-        lesson: lesson.choices[0].message.content,
-        vision: vision.choices[0].message.content,
-      }
+      angles,
+      credits_remaining: user.is_pro ? 999 : user.credits - 1,
     });
 
-  } catch (error) {
-    console.error('API Error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (err) {
+    console.error('API Error:', err);
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

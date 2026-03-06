@@ -45,12 +45,36 @@ export default function Dashboard() {
     setTranscript('');
     setSaved({});
 
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('email', email);
-
     try {
-      const res = await fetch('/api/analyze', { method: 'POST', body: formData });
+      // 1. Upload fichier vers Supabase Storage
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}.${fileExt}`;
+
+      const { data: uploadData, error: uploadError } = await supabase
+        .storage
+        .from('videos')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+
+      if (uploadError) throw new Error('Upload failed: ' + uploadError.message);
+
+      // 2. Récupérer l'URL publique
+      const { data: urlData } = supabase
+        .storage
+        .from('videos')
+        .getPublicUrl(fileName);
+
+      const fileUrl = urlData.publicUrl;
+
+      // 3. Envoyer l'URL à l'API
+      const res = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileUrl, email }),
+      });
+
       const text = await res.text();
       if (!text) throw new Error("Réponse vide");
       const data = JSON.parse(text);
