@@ -22,16 +22,20 @@ export async function POST(req) {
       .from('users')
       .select('*')
       .eq('email', email)
-      .single();
+      .maybeSingle();
 
     if (!user) {
-      const { data: newUser } = await supabase
+      const { data: newUser, error: insertError } = await supabase
         .from('users')
         .insert([{ email, credits: 3 }])
         .select()
         .single();
+
+      if (insertError) throw new Error('Failed to create user: ' + insertError.message);
       user = newUser;
     }
+
+    if (!user) throw new Error('User creation failed');
 
     if (user.credits <= 0 && !user.is_pro) {
       return NextResponse.json({ error: 'NO_CREDITS' }, { status: 200 });
