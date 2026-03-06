@@ -21,6 +21,12 @@ export async function POST(req) {
       return NextResponse.json({ error: 'EMAIL_REQUIRED' }, { status: 400 });
     }
 
+    // TEST CONNEXION SUPABASE
+    console.log('SUPABASE URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
+    console.log('SUPABASE KEY exists:', !!process.env.SUPABASE_SERVICE_KEY);
+    const testConnection = await supabase.from('credits').select('count');
+    console.log('Test connection result:', JSON.stringify(testConnection));
+
     // 1. VÉRIFICATION DES CRÉDITS
     let { data: creditData, error: fetchError } = await supabase
       .from('credits')
@@ -28,9 +34,8 @@ export async function POST(req) {
       .eq('user_email', userEmail)
       .maybeSingle();
 
-    console.log('Credit fetch:', creditData, fetchError);
+    console.log('Credit fetch result:', JSON.stringify(creditData), JSON.stringify(fetchError));
 
-    // Si pas encore de crédits → créer
     if (!creditData) {
       const { data: newCredit, error: insertError } = await supabase
         .from('credits')
@@ -38,11 +43,16 @@ export async function POST(req) {
         .select()
         .single();
 
-      console.log('Credit insert:', newCredit, insertError);
+      console.log('Credit insert result:', JSON.stringify(newCredit), JSON.stringify(insertError));
 
       if (insertError || !newCredit) {
-        return NextResponse.json({ 
-          error: 'Impossible de créer les crédits: ' + (insertError?.message || 'null result')
+        return NextResponse.json({
+          error: 'Impossible de créer les crédits: ' + (insertError?.message || 'null result'),
+          debug: {
+            supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+            hasServiceKey: !!process.env.SUPABASE_SERVICE_KEY,
+            insertError: insertError?.message,
+          }
         }, { status: 500 });
       }
 
