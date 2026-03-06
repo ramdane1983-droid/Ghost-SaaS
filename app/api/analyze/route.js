@@ -22,18 +22,30 @@ export async function POST(req) {
     }
 
     // 1. VÉRIFICATION DES CRÉDITS
-    let { data: creditData } = await supabase
+    let { data: creditData, error: fetchError } = await supabase
       .from('credits')
       .select('*')
       .eq('user_email', userEmail)
       .maybeSingle();
 
+    console.log('Credit fetch:', creditData, fetchError);
+
+    // Si pas encore de crédits → créer
     if (!creditData) {
-      const { data: newCredit } = await supabase
+      const { data: newCredit, error: insertError } = await supabase
         .from('credits')
         .insert([{ user_email: userEmail, credits_remaining: 3, plan: 'free' }])
         .select()
         .single();
+
+      console.log('Credit insert:', newCredit, insertError);
+
+      if (insertError || !newCredit) {
+        return NextResponse.json({ 
+          error: 'Impossible de créer les crédits: ' + (insertError?.message || 'null result')
+        }, { status: 500 });
+      }
+
       creditData = newCredit;
     }
 
