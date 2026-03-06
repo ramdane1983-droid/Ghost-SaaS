@@ -7,8 +7,8 @@ export const maxDuration = 60;
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY
+  "https://zynnnyxmwbgzbatphpjh.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp5bm5ueXhtd2JnemJhdHBocGpoIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjEwOTUzNiwiZXhwIjoyMDg3Njg1NTM2fQ.Z2WF1be5gp00z1w5wtZppv4832m8RKws-87Ju4pw1rM"
 );
 
 export async function POST(req) {
@@ -21,12 +21,6 @@ export async function POST(req) {
       return NextResponse.json({ error: 'EMAIL_REQUIRED' }, { status: 400 });
     }
 
-    // TEST CONNEXION SUPABASE
-    console.log('SUPABASE URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
-    console.log('SUPABASE KEY exists:', !!process.env.SUPABASE_SERVICE_KEY);
-    const testConnection = await supabase.from('credits').select('count');
-    console.log('Test connection result:', JSON.stringify(testConnection));
-
     // 1. VÉRIFICATION DES CRÉDITS
     let { data: creditData, error: fetchError } = await supabase
       .from('credits')
@@ -34,7 +28,7 @@ export async function POST(req) {
       .eq('user_email', userEmail)
       .maybeSingle();
 
-    console.log('Credit fetch result:', JSON.stringify(creditData), JSON.stringify(fetchError));
+    console.log('Credit fetch:', JSON.stringify(creditData), JSON.stringify(fetchError));
 
     if (!creditData) {
       const { data: newCredit, error: insertError } = await supabase
@@ -43,16 +37,11 @@ export async function POST(req) {
         .select()
         .single();
 
-      console.log('Credit insert result:', JSON.stringify(newCredit), JSON.stringify(insertError));
+      console.log('Credit insert:', JSON.stringify(newCredit), JSON.stringify(insertError));
 
       if (insertError || !newCredit) {
         return NextResponse.json({
           error: 'Impossible de créer les crédits: ' + (insertError?.message || 'null result'),
-          debug: {
-            supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
-            hasServiceKey: !!process.env.SUPABASE_SERVICE_KEY,
-            insertError: insertError?.message,
-          }
         }, { status: 500 });
       }
 
