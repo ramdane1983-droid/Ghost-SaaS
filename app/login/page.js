@@ -14,7 +14,6 @@ export default function Login() {
   const [isSignup, setIsSignup] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
 
   const getPasswordStrength = (pwd) => {
     if (pwd.length === 0) return { score: 0, label: '', color: '#1A1A1A' };
@@ -28,7 +27,6 @@ export default function Login() {
 
   const handleAuth = async () => {
     setError('');
-    setSuccess('');
 
     if (!email || !password) return setError('Email and password are required');
     if (!/\S+@\S+\.\S+/.test(email)) return setError('Please enter a valid email address');
@@ -52,7 +50,7 @@ export default function Login() {
           }
         });
         if (error) throw error;
-        setSuccess('✓ Check your inbox — we sent you a confirmation email');
+        window.location.href = '/dashboard';
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
@@ -88,7 +86,6 @@ export default function Login() {
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         .animate-in { animation: fadeIn 0.6s ease forwards; }
         .btn-gold:hover { background: #B8933B !important; transform: translateY(-1px); }
-        .input-wrap:focus-within label { color: #C9A84C !important; }
       `}</style>
 
       <div className="animate-in" style={{
@@ -131,7 +128,7 @@ export default function Login() {
             {['SIGN IN', 'CREATE ACCOUNT'].map((tab, i) => (
               <button
                 key={tab}
-                onClick={() => { setIsSignup(i === 1); setError(''); setSuccess(''); }}
+                onClick={() => { setIsSignup(i === 1); setError(''); }}
                 style={{
                   flex: 1, padding: '10px',
                   background: isSignup === (i === 1) ? '#C9A84C' : 'transparent',
@@ -151,12 +148,11 @@ export default function Login() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginBottom: '28px' }}>
 
             {/* EMAIL */}
-            <div className="input-wrap">
-              <label style={{ display: 'block', fontSize: '9px', letterSpacing: '3px', color: '#444', marginBottom: '8px', transition: 'color 0.2s' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '9px', letterSpacing: '3px', color: '#444', marginBottom: '8px' }}>
                 EMAIL ADDRESS
               </label>
-              <div style={{ border: '1px solid #1E1E1E', borderRadius: '4px', padding: '14px 18px', transition: 'border-color 0.2s' }}
-                onFocus={() => {}} >
+              <div style={{ border: '1px solid #1E1E1E', borderRadius: '4px', padding: '14px 18px' }}>
                 <input
                   type="email"
                   placeholder="founder@company.com"
@@ -168,8 +164,8 @@ export default function Login() {
             </div>
 
             {/* PASSWORD */}
-            <div className="input-wrap">
-              <label style={{ display: 'block', fontSize: '9px', letterSpacing: '3px', color: '#444', marginBottom: '8px', transition: 'color 0.2s' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '9px', letterSpacing: '3px', color: '#444', marginBottom: '8px' }}>
                 PASSWORD
               </label>
               <div style={{ border: '1px solid #1E1E1E', borderRadius: '4px', padding: '14px 18px' }}>
@@ -182,7 +178,6 @@ export default function Login() {
                   style={{ fontSize: '13px', letterSpacing: '0.5px' }}
                 />
               </div>
-              {/* PASSWORD STRENGTH */}
               {isSignup && password.length > 0 && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
                   <div style={{ display: 'flex', gap: '3px', flex: 1 }}>
@@ -203,7 +198,7 @@ export default function Login() {
 
             {/* CONFIRM PASSWORD */}
             {isSignup && (
-              <div className="input-wrap">
+              <div>
                 <label style={{ display: 'block', fontSize: '9px', letterSpacing: '3px', color: '#444', marginBottom: '8px' }}>
                   CONFIRM PASSWORD
                 </label>
@@ -238,18 +233,6 @@ export default function Login() {
               marginBottom: '20px', lineHeight: 1.5,
             }}>
               ⚠ {error}
-            </div>
-          )}
-
-          {/* SUCCESS */}
-          {success && (
-            <div style={{
-              padding: '12px 16px', background: '#0A1A0A',
-              border: '1px solid #C9A84C33', borderRadius: '4px',
-              color: '#C9A84C', fontSize: '11px', letterSpacing: '0.5px',
-              marginBottom: '20px', lineHeight: 1.5,
-            }}>
-              {success}
             </div>
           )}
 
