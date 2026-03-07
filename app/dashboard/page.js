@@ -15,6 +15,8 @@ const ANGLE_CONFIG = {
 
 export default function Dashboard() {
   const [email, setEmail] = useState('');
+  const [userSession, setUserSession] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [transcript, setTranscript] = useState('');
@@ -27,40 +29,59 @@ export default function Dashboard() {
   const [upgradeLoading, setUpgradeLoading] = useState(false);
   const [activeAngle, setActiveAngle] = useState('rant');
 
-  useEffect(() => { fetchHistory(); }, []);
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        window.location.href = '/login';
+        return;
+      }
+      setUserSession(session);
+      setEmail(session.user.email);
+      setAuthLoading(false);
+      fetchHistory(session.user.email);
+    };
+    checkSession();
+  }, []);
 
-  const fetchHistory = async () => {
+  if (authLoading) return (
+    <div style={{
+      minHeight: '100vh', background: '#080808',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      color: '#C9A84C', fontFamily: 'Montserrat', fontSize: '11px', letterSpacing: '3px',
+    }}>
+      LOADING...
+    </div>
+  );
+
+  const fetchHistory = async (userEmail) => {
+    const emailToUse = userEmail || email;
     const { data } = await supabase
       .from('posts')
       .select('*')
+      .eq('email', emailToUse)
       .order('created_at', { ascending: false });
     setHistory(data || []);
   };
 
   const handleUpload = async () => {
     if (!file) return alert("Sélectionne un fichier audio ou vidéo");
-    if (!email) return alert("Entre ton email");
     setLoading(true);
     setAngles(null);
     setTranscript('');
     setSaved({});
 
     try {
-      // 1. Upload fichier vers Supabase Storage
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}.${fileExt}`;
 
-      const { data: uploadData, error: uploadError } = await supabase
+      const { error: uploadError } = await supabase
         .storage
         .from('videos')
-        .upload(fileName, file, {
-          cacheControl: '3600',
-          upsert: false,
-        });
+        .upload(fileName, file, { cacheControl: '3600', upsert: false });
 
       if (uploadError) throw new Error('Upload failed: ' + uploadError.message);
 
-      // 2. Récupérer l'URL publique
       const { data: urlData } = supabase
         .storage
         .from('videos')
@@ -68,7 +89,6 @@ export default function Dashboard() {
 
       const fileUrl = urlData.publicUrl;
 
-      // 3. Envoyer l'URL à l'API
       const res = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -91,8 +111,12 @@ export default function Dashboard() {
     }
   };
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    window.location.href = '/login';
+  };
+
   const handleUpgrade = async () => {
-    if (!email) return alert("Entre ton email");
     setUpgradeLoading(true);
     try {
       const res = await fetch('/api/stripe', {
@@ -115,10 +139,11 @@ export default function Dashboard() {
       content_ai: angles[angleKey],
       status: 'draft',
       narrative_type: angleKey,
+      email: email,
     }]);
     if (!error) {
       setSaved(p => ({ ...p, [angleKey]: true }));
-      await fetchHistory();
+      await fetchHistory(email);
     }
   };
 
@@ -130,10 +155,8 @@ export default function Dashboard() {
 
   return (
     <div style={{
-      minHeight: '100vh',
-      background: '#080808',
-      color: '#E8E0D0',
-      fontFamily: "'Georgia', serif",
+      minHeight: '100vh', background: '#080808',
+      color: '#E8E0D0', fontFamily: "'Georgia', serif",
     }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600;700&display=swap');
@@ -157,8 +180,7 @@ export default function Dashboard() {
 
       {/* HEADER */}
       <div style={{
-        borderBottom: '1px solid #1A1A1A',
-        padding: '24px 48px',
+        borderBottom: '1px solid #1A1A1A', padding: '24px 48px',
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         position: 'sticky', top: 0, zIndex: 100,
         background: '#08080899', backdropFilter: 'blur(10px)',
@@ -180,10 +202,22 @@ export default function Dashboard() {
               </span>
             </div>
           )}
-          <a href="/" style={{
-            fontSize: '9px', letterSpacing: '2px', color: '#333',
-            fontFamily: 'Montserrat', textDecoration: 'none',
-          }}>← HOME</a>
+          <span style={{ fontSize: '11px', color: '#333', fontFamily: 'Montserrat', letterSpacing: '1px' }}>
+            {email}
+          </span>
+          <button
+            onClick={handleLogout}
+            style={{
+              background: 'none', border: '1px solid #1A1A1A', borderRadius: '4px',
+              color: '#333', fontSize: '9px', letterSpacing: '2px',
+              fontFamily: 'Montserrat', cursor: 'pointer', padding: '8px 16px',
+              transition: 'all 0.2s',
+            }}
+            onMouseOver={e => { e.target.style.borderColor = '#C9A84C44'; e.target.style.color = '#C9A84C'; }}
+            onMouseOut={e => { e.target.style.borderColor = '#1A1A1A'; e.target.style.color = '#333'; }}
+          >
+            LOGOUT
+          </button>
         </div>
       </div>
 
@@ -204,27 +238,6 @@ export default function Dashboard() {
           <p style={{ fontSize: '14px', color: '#555', letterSpacing: '1px', fontFamily: 'Montserrat', fontWeight: 300 }}>
             Upload a call. Receive three strategic angles. Dominate LinkedIn.
           </p>
-        </div>
-
-        {/* EMAIL */}
-        <div style={{ marginBottom: '32px' }}>
-          <div style={{ fontSize: '9px', letterSpacing: '3px', color: '#C9A84C', fontFamily: 'Montserrat', marginBottom: '10px' }}>
-            YOUR EMAIL
-          </div>
-          <input
-            type="email"
-            placeholder="founder@company.com"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            style={{
-              width: '100%', padding: '16px 24px',
-              border: '1px solid #1E1E1E', borderRadius: '4px',
-              fontSize: '14px', letterSpacing: '1px',
-              background: '#0D0D0D', transition: 'border-color 0.3s',
-            }}
-            onFocus={e => e.target.style.borderColor = '#C9A84C44'}
-            onBlur={e => e.target.style.borderColor = '#1E1E1E'}
-          />
         </div>
 
         {/* UPLOAD */}
