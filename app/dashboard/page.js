@@ -4,13 +4,13 @@ import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
   "https://zynnnyxmwbgzbatphpjh.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp5bm5ueXhtd2JnemJhdHBocGpoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIxMDk1MzYsImV4cCI6MjA4NzY4NTUzNn0.qCycJ1lej56BMO1Akti2qbPuVi1D1bGYptpskju8vPM"
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp5bm5ueXhtd2JnemJhdHBocGpoIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjEwOTUzNiwiZXhwIjoyMDg3Njg1NTM2fQ.Z2WF1be5gp00z1w5wtZppv4832m8RKws-87Ju4pw1rM"
 );
 
 const ANGLE_CONFIG = {
-  rant: { label: 'THE RANT', icon: '⚡', color: '#C9A84C', description: 'Provocateur · Contrarian' },
-  lesson: { label: 'THE LESSON', icon: '📖', color: '#A8C5DA', description: 'Éducatif · Actionnable' },
-  vision: { label: 'THE VISION', icon: '🔭', color: '#B8A9D9', description: 'Visionnaire · Inspirant' },
+  rant: { label: 'THE RANT', icon: '⚡', color: '#B8963E', description: 'Provocateur · Contrarian' },
+  lesson: { label: 'THE LESSON', icon: '📖', color: '#7A9BB5', description: 'Éducatif · Actionnable' },
+  vision: { label: 'THE VISION', icon: '🔭', color: '#9B8EC4', description: 'Visionnaire · Inspirant' },
 };
 
 export default function Dashboard() {
@@ -28,6 +28,7 @@ export default function Dashboard() {
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [upgradeLoading, setUpgradeLoading] = useState(false);
   const [activeAngle, setActiveAngle] = useState('rant');
+  const [dragOver, setDragOver] = useState(false);
 
   useEffect(() => {
     const checkSession = async () => {
@@ -46,11 +47,15 @@ export default function Dashboard() {
 
   if (authLoading) return (
     <div style={{
-      minHeight: '100vh', background: '#080808',
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #F5F2ED 0%, #EDE8E0 50%, #F0EDE6 100%)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      color: '#C9A84C', fontFamily: 'Montserrat', fontSize: '11px', letterSpacing: '3px',
+      color: '#B8963E', fontFamily: 'Georgia, serif', fontSize: '13px', letterSpacing: '4px',
     }}>
-      LOADING...
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ fontSize: '28px', marginBottom: '16px', opacity: 0.6 }}>◈</div>
+        LOADING...
+      </div>
     </div>
   );
 
@@ -76,17 +81,12 @@ export default function Dashboard() {
       const fileName = `${Date.now()}.${fileExt}`;
 
       const { error: uploadError } = await supabase
-        .storage
-        .from('videos')
+        .storage.from('videos')
         .upload(fileName, file, { cacheControl: '3600', upsert: false });
 
       if (uploadError) throw new Error('Upload failed: ' + uploadError.message);
 
-      const { data: urlData } = supabase
-        .storage
-        .from('videos')
-        .getPublicUrl(fileName);
-
+      const { data: urlData } = supabase.storage.from('videos').getPublicUrl(fileName);
       const fileUrl = urlData.publicUrl;
 
       const res = await fetch('/api/analyze', {
@@ -153,165 +153,311 @@ export default function Dashboard() {
     setTimeout(() => setCopied(''), 2000);
   };
 
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setDragOver(false);
+    const dropped = e.dataTransfer.files[0];
+    if (dropped) setFile(dropped);
+  };
+
   return (
-    <div style={{
-      minHeight: '100vh', background: '#080808',
-      color: '#E8E0D0', fontFamily: "'Georgia', serif",
-    }}>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(160deg, #F7F4EF 0%, #EDE8DF 40%, #E8E2D8 100%)', color: '#2C2416' }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,700;1,400;1,500&family=Jost:wght@300;400;500;600&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background: #080808; }
-        input, textarea { background: transparent; color: #E8E0D0; outline: none; font-family: 'Montserrat', sans-serif; }
-        input::placeholder { color: #444; }
+        :root {
+          --gold: #B8963E;
+          --gold-light: #D4AF5A;
+          --gold-pale: #F0E6CC;
+          --pearl: #F7F4EF;
+          --pearl-dark: #EDE8DF;
+          --text: #2C2416;
+          --text-muted: #8C7B5E;
+          --text-faint: #C4B49A;
+          --border: #DDD5C4;
+          --border-light: #EDE5D6;
+          --white: #FDFBF8;
+        }
+        body { background: var(--pearl); }
+        input, textarea { background: transparent; color: var(--text); outline: none; font-family: 'Jost', sans-serif; }
+        input::placeholder { color: var(--text-faint); }
         ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-track { background: #111; }
-        ::-webkit-scrollbar-thumb { background: #C9A84C44; border-radius: 2px; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        ::-webkit-scrollbar-track { background: var(--pearl-dark); }
+        ::-webkit-scrollbar-thumb { background: var(--gold-pale); border-radius: 2px; }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes shimmer { 0% { background-position: -200% center; } 100% { background-position: 200% center; } }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        .animate-in { animation: fadeIn 0.6s ease forwards; }
-        .angle-tab:hover { background: #C9A84C11 !important; }
-        .btn-gold:hover { background: #B8933B !important; transform: translateY(-1px); }
-        .btn-ghost:hover { background: #C9A84C11 !important; color: #C9A84C !important; }
-        .vault-item:hover { border-color: #C9A84C44 !important; background: #111 !important; }
-        .upload-zone:hover { border-color: #C9A84C88 !important; background: #C9A84C05 !important; }
+        @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.6; transform: scale(0.95); } }
+        .fade-up { animation: fadeUp 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+        .fade-up-2 { animation: fadeUp 0.7s 0.1s cubic-bezier(0.22, 1, 0.36, 1) both; }
+        .fade-up-3 { animation: fadeUp 0.7s 0.2s cubic-bezier(0.22, 1, 0.36, 1) both; }
+        .btn-primary {
+          background: linear-gradient(135deg, #C9A84C, #B8963E, #A07830);
+          background-size: 200% auto;
+          transition: all 0.4s ease;
+          box-shadow: 0 4px 20px rgba(184,150,62,0.25), inset 0 1px 0 rgba(255,255,255,0.15);
+        }
+        .btn-primary:hover {
+          background-position: right center;
+          box-shadow: 0 8px 30px rgba(184,150,62,0.4), inset 0 1px 0 rgba(255,255,255,0.2);
+          transform: translateY(-2px);
+        }
+        .btn-primary:disabled {
+          background: var(--border);
+          box-shadow: none;
+          transform: none;
+        }
+        .btn-secondary {
+          background: var(--white);
+          border: 1px solid var(--border);
+          transition: all 0.3s ease;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+        .btn-secondary:hover {
+          border-color: var(--gold);
+          color: var(--gold) !important;
+          box-shadow: 0 4px 16px rgba(184,150,62,0.15);
+          transform: translateY(-1px);
+        }
+        .card {
+          background: var(--white);
+          border: 1px solid var(--border-light);
+          border-radius: 16px;
+          box-shadow: 0 4px 24px rgba(44,36,22,0.06), 0 1px 4px rgba(44,36,22,0.04);
+        }
+        .upload-zone {
+          background: linear-gradient(135deg, var(--white), var(--pearl));
+          border: 2px dashed var(--border);
+          border-radius: 16px;
+          transition: all 0.3s ease;
+          cursor: pointer;
+        }
+        .upload-zone:hover, .upload-zone.drag-over {
+          border-color: var(--gold);
+          background: linear-gradient(135deg, #FDFAF4, var(--gold-pale));
+          box-shadow: 0 8px 32px rgba(184,150,62,0.12);
+        }
+        .angle-tab {
+          transition: all 0.25s ease;
+          border-radius: 10px 10px 0 0;
+        }
+        .angle-tab:hover { background: var(--pearl) !important; }
+        .vault-item {
+          background: var(--white);
+          border: 1px solid var(--border-light);
+          border-radius: 12px;
+          transition: all 0.3s ease;
+          box-shadow: 0 2px 8px rgba(44,36,22,0.04);
+        }
+        .vault-item:hover {
+          border-color: var(--gold);
+          box-shadow: 0 8px 24px rgba(184,150,62,0.12);
+          transform: translateY(-2px);
+        }
+        .gold-divider {
+          height: 1px;
+          background: linear-gradient(90deg, transparent, var(--gold-light), transparent);
+        }
+        .texture-overlay {
+          background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+          pointer-events: none;
+          position: fixed; inset: 0; z-index: 0;
+        }
       `}</style>
 
-      {/* HEADER */}
-      <div style={{
-        borderBottom: '1px solid #1A1A1A', padding: '24px 48px',
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        position: 'sticky', top: 0, zIndex: 100,
-        background: '#08080899', backdropFilter: 'blur(10px)',
-      }}>
-        <div>
-          <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '22px', fontWeight: 300, letterSpacing: '4px', color: '#C9A84C' }}>
-            GHOST<span style={{ color: '#E8E0D0' }}>SAAS</span>
-          </div>
-          <div style={{ fontSize: '9px', letterSpacing: '3px', color: '#444', fontFamily: 'Montserrat', marginTop: '2px' }}>
-            AUTHORITY INTELLIGENCE
-          </div>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-          {creditsRemaining !== null && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#C9A84C', animation: 'pulse 2s infinite' }} />
-              <span style={{ fontSize: '11px', letterSpacing: '2px', color: '#888', fontFamily: 'Montserrat' }}>
-                {creditsRemaining} CREDITS
-              </span>
-            </div>
-          )}
-          <span style={{ fontSize: '11px', color: '#333', fontFamily: 'Montserrat', letterSpacing: '1px' }}>
-            {email}
-          </span>
-          <button
-            onClick={handleLogout}
-            style={{
-              background: 'none', border: '1px solid #1A1A1A', borderRadius: '4px',
-              color: '#333', fontSize: '9px', letterSpacing: '2px',
-              fontFamily: 'Montserrat', cursor: 'pointer', padding: '8px 16px',
-              transition: 'all 0.2s',
-            }}
-            onMouseOver={e => { e.target.style.borderColor = '#C9A84C44'; e.target.style.color = '#C9A84C'; }}
-            onMouseOut={e => { e.target.style.borderColor = '#1A1A1A'; e.target.style.color = '#333'; }}
-          >
-            LOGOUT
-          </button>
-        </div>
-      </div>
+      <div className="texture-overlay" />
 
-      <div style={{ maxWidth: '900px', margin: '0 auto', padding: '60px 48px' }}>
+      {/* HEADER */}
+      <header style={{
+        position: 'sticky', top: 0, zIndex: 100,
+        background: 'rgba(247,244,239,0.85)',
+        backdropFilter: 'blur(20px)',
+        borderBottom: '1px solid var(--border-light)',
+        boxShadow: '0 4px 24px rgba(44,36,22,0.06)',
+      }}>
+        <div style={{
+          maxWidth: '1100px', margin: '0 auto',
+          padding: '0 48px', height: '72px',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        }}>
+          {/* LOGO */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{
+              width: '36px', height: '36px', borderRadius: '10px',
+              background: 'linear-gradient(135deg, #C9A84C, #A07830)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 4px 12px rgba(184,150,62,0.3)',
+              fontSize: '16px',
+            }}>◈</div>
+            <div>
+              <div style={{
+                fontFamily: "'Playfair Display', serif",
+                fontSize: '18px', fontWeight: 700, letterSpacing: '1px',
+                color: '#2C2416',
+              }}>
+                Ghost<span style={{ color: '#B8963E' }}>SaaS</span>
+              </div>
+              <div style={{ fontSize: '9px', letterSpacing: '3px', color: 'var(--text-faint)', fontFamily: 'Jost' }}>
+                AUTHORITY ENGINE
+              </div>
+            </div>
+          </div>
+
+          {/* RIGHT */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+            {creditsRemaining !== null && (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: '8px',
+                padding: '6px 14px',
+                background: 'linear-gradient(135deg, #FDF8EC, #F5EDD4)',
+                border: '1px solid #E8D9A8',
+                borderRadius: '20px',
+              }}>
+                <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#B8963E', animation: 'pulse 2s infinite' }} />
+                <span style={{ fontSize: '11px', letterSpacing: '1px', color: '#8C6A2E', fontFamily: 'Jost', fontWeight: 500 }}>
+                  {creditsRemaining} credits
+                </span>
+              </div>
+            )}
+            <div style={{
+              fontSize: '12px', color: 'var(--text-muted)',
+              fontFamily: 'Jost', maxWidth: '180px',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>
+              {email}
+            </div>
+            <button
+              onClick={handleLogout}
+              className="btn-secondary"
+              style={{
+                padding: '8px 18px', borderRadius: '8px',
+                color: 'var(--text-muted)', fontSize: '11px',
+                letterSpacing: '1px', fontFamily: 'Jost',
+                fontWeight: 500, cursor: 'pointer',
+              }}
+            >
+              Logout
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main style={{ maxWidth: '820px', margin: '0 auto', padding: '60px 24px 120px' }}>
 
         {/* HERO */}
-        <div style={{ textAlign: 'center', marginBottom: '64px' }} className="animate-in">
-          <div style={{ fontSize: '11px', letterSpacing: '4px', color: '#C9A84C', fontFamily: 'Montserrat', fontWeight: 500, marginBottom: '20px' }}>
-            ✦ YOUR WORDS. AMPLIFIED. ✦
+        <div style={{ textAlign: 'center', marginBottom: '60px' }} className="fade-up">
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: '8px',
+            padding: '6px 16px',
+            background: 'linear-gradient(135deg, #FDF8EC, #F5EDD4)',
+            border: '1px solid #E8D9A8',
+            borderRadius: '20px', marginBottom: '24px',
+          }}>
+            <span style={{ fontSize: '10px', letterSpacing: '3px', color: '#8C6A2E', fontFamily: 'Jost', fontWeight: 600 }}>
+              ✦ YOUR AUTHORITY ENGINE
+            </span>
           </div>
           <h1 style={{
-            fontFamily: "'Cormorant Garamond', serif",
-            fontSize: '56px', fontWeight: 300, lineHeight: 1.1,
-            color: '#E8E0D0', marginBottom: '16px',
+            fontFamily: "'Playfair Display', serif",
+            fontSize: '52px', fontWeight: 500, lineHeight: 1.15,
+            color: '#2C2416', marginBottom: '16px',
           }}>
-            Transform Your Voice<br /><em style={{ color: '#C9A84C' }}>Into Authority</em>
+            Transform Your Voice<br />
+            <em style={{
+              background: 'linear-gradient(135deg, #C9A84C, #8C6A2E)',
+              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+            }}>Into Authority</em>
           </h1>
-          <p style={{ fontSize: '14px', color: '#555', letterSpacing: '1px', fontFamily: 'Montserrat', fontWeight: 300 }}>
+          <p style={{ fontSize: '15px', color: 'var(--text-muted)', fontFamily: 'Jost', fontWeight: 300, lineHeight: 1.6 }}>
             Upload a call. Receive three strategic angles. Dominate LinkedIn.
           </p>
         </div>
 
-        {/* UPLOAD */}
-        <div
-          className="upload-zone"
-          style={{
-            border: '1px solid #1E1E1E', borderRadius: '8px',
-            padding: '48px', textAlign: 'center',
-            marginBottom: '32px', background: '#0A0A0A',
-            cursor: 'pointer', transition: 'all 0.3s',
-          }}
-          onClick={() => document.getElementById('file-upload').click()}
-        >
-          <input
-            type="file"
-            id="file-upload"
-            accept="video/*,audio/*,.mp4,.mov,.mp3,.wav,.m4a,.webm"
-            onChange={e => setFile(e.target.files[0])}
-            style={{ display: 'none' }}
-          />
-          <div style={{ fontSize: '32px', marginBottom: '16px' }}>{file ? '✓' : '◎'}</div>
-          <div style={{
-            fontSize: '11px', letterSpacing: '3px',
-            color: file ? '#C9A84C' : '#333',
-            fontFamily: 'Montserrat', marginBottom: '8px',
-          }}>
-            {file ? file.name.toUpperCase() : 'DROP YOUR ZOOM CALL OR VOICE MEMO'}
-          </div>
-          {!file && (
-            <div style={{ fontSize: '11px', color: '#2A2A2A', fontFamily: 'Montserrat', letterSpacing: '1px' }}>
-              MP4 · MOV · MP3 · WAV · M4A · WEBM
-            </div>
-          )}
-        </div>
+        {/* UPLOAD CARD */}
+        <div className="card fade-up-2" style={{ padding: '40px', marginBottom: '24px' }}>
 
-        {/* CTA BUTTON */}
-        <button
-          onClick={handleUpload}
-          disabled={loading}
-          className="btn-gold"
-          style={{
-            width: '100%', padding: '20px',
-            background: loading ? '#1A1A1A' : '#C9A84C',
-            color: loading ? '#444' : '#080808',
-            border: 'none', borderRadius: '4px',
-            fontSize: '11px', letterSpacing: '4px',
-            fontFamily: 'Montserrat', fontWeight: 700,
-            cursor: loading ? 'not-allowed' : 'pointer',
-            marginBottom: '64px', transition: 'all 0.3s',
-          }}
-        >
-          {loading ? (
-            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
-              <span style={{
-                display: 'inline-block', width: '14px', height: '14px',
-                border: '2px solid #C9A84C44', borderTop: '2px solid #C9A84C',
-                borderRadius: '50%', animation: 'spin 1s linear infinite',
-              }} />
-              ANALYZING YOUR GENIUS...
-            </span>
-          ) : 'EXTRACT 3 STRATEGIC ANGLES →'}
-        </button>
+          {/* UPLOAD ZONE */}
+          <div
+            className={`upload-zone ${dragOver ? 'drag-over' : ''}`}
+            style={{ padding: '48px 32px', textAlign: 'center', marginBottom: '28px' }}
+            onClick={() => document.getElementById('file-upload').click()}
+            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={handleDrop}
+          >
+            <input
+              type="file"
+              id="file-upload"
+              accept="video/*,audio/*,.mp4,.mov,.mp3,.wav,.m4a,.webm"
+              onChange={e => setFile(e.target.files[0])}
+              style={{ display: 'none' }}
+            />
+            <div style={{
+              width: '64px', height: '64px', borderRadius: '16px',
+              background: file
+                ? 'linear-gradient(135deg, #C9A84C, #A07830)'
+                : 'linear-gradient(135deg, #F0E6CC, #E8D9A8)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              margin: '0 auto 20px',
+              boxShadow: file ? '0 8px 24px rgba(184,150,62,0.3)' : 'none',
+              fontSize: '28px', transition: 'all 0.3s',
+            }}>
+              {file ? '✓' : '🎙'}
+            </div>
+            <div style={{
+              fontSize: '15px', fontFamily: "'Playfair Display', serif",
+              color: file ? '#B8963E' : '#2C2416',
+              marginBottom: '8px', fontWeight: 500,
+            }}>
+              {file ? file.name : 'Drop your Zoom call or voice memo'}
+            </div>
+            <div style={{ fontSize: '12px', color: 'var(--text-faint)', fontFamily: 'Jost', letterSpacing: '1px' }}>
+              {file ? (
+                <span style={{ color: '#B8963E', cursor: 'pointer', textDecoration: 'underline' }}
+                  onClick={(e) => { e.stopPropagation(); setFile(null); }}>
+                  Remove file
+                </span>
+              ) : 'MP4 · MOV · MP3 · WAV · M4A · WEBM — Click or drag & drop'}
+            </div>
+          </div>
+
+          {/* BUTTON */}
+          <button
+            onClick={handleUpload}
+            disabled={loading || !file}
+            className="btn-primary"
+            style={{
+              width: '100%', padding: '18px',
+              border: 'none', borderRadius: '12px',
+              color: '#FFF8EC',
+              fontSize: '12px', letterSpacing: '3px',
+              fontFamily: 'Jost', fontWeight: 600,
+              cursor: loading || !file ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {loading ? (
+              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
+                <span style={{
+                  display: 'inline-block', width: '16px', height: '16px',
+                  border: '2px solid rgba(255,248,236,0.3)', borderTop: '2px solid #FFF8EC',
+                  borderRadius: '50%', animation: 'spin 1s linear infinite',
+                }} />
+                ANALYZING YOUR GENIUS...
+              </span>
+            ) : 'EXTRACT 3 STRATEGIC ANGLES →'}
+          </button>
+        </div>
 
         {/* TRANSCRIPT */}
         {transcript && (
-          <div style={{
-            padding: '24px 32px', background: '#0A0A0A',
-            border: '1px solid #1A1A1A', borderLeft: '2px solid #C9A84C44',
-            borderRadius: '4px', marginBottom: '48px',
-          }} className="animate-in">
-            <div style={{ fontSize: '9px', letterSpacing: '3px', color: '#C9A84C', fontFamily: 'Montserrat', marginBottom: '12px' }}>
-              TRANSCRIPT
+          <div className="card fade-up" style={{ padding: '28px 32px', marginBottom: '32px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
+              <div style={{ width: '3px', height: '20px', background: 'linear-gradient(180deg, #C9A84C, #A07830)', borderRadius: '2px' }} />
+              <span style={{ fontSize: '10px', letterSpacing: '3px', color: '#B8963E', fontFamily: 'Jost', fontWeight: 600 }}>
+                TRANSCRIPT
+              </span>
             </div>
-            <p style={{ fontSize: '13px', color: '#555', lineHeight: 1.7, fontFamily: 'Montserrat', fontWeight: 300 }}>
+            <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.8, fontFamily: 'Jost', fontWeight: 300 }}>
               {transcript}
             </p>
           </div>
@@ -319,34 +465,30 @@ export default function Dashboard() {
 
         {/* 3 ANGLES */}
         {angles && (
-          <div style={{ marginBottom: '80px' }} className="animate-in">
-            <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-              <div style={{ fontSize: '9px', letterSpacing: '4px', color: '#C9A84C', fontFamily: 'Montserrat', marginBottom: '8px' }}>
+          <div style={{ marginBottom: '80px' }} className="fade-up">
+            <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+              <div style={{ fontSize: '10px', letterSpacing: '4px', color: '#B8963E', fontFamily: 'Jost', fontWeight: 600, marginBottom: '12px' }}>
                 ✦ YOUR THREE ANGLES ✦
               </div>
-              <div style={{ width: '40px', height: '1px', background: '#C9A84C44', margin: '0 auto' }} />
+              <div className="gold-divider" style={{ maxWidth: '200px', margin: '0 auto' }} />
             </div>
 
             {/* TABS */}
-            <div style={{
-              display: 'flex', gap: '2px', background: '#0D0D0D',
-              padding: '4px', borderRadius: '6px 6px 0 0',
-              border: '1px solid #1A1A1A', borderBottom: 'none',
-            }}>
+            <div style={{ display: 'flex', gap: '4px', marginBottom: '-1px', position: 'relative', zIndex: 1 }}>
               {Object.entries(ANGLE_CONFIG).map(([key, config]) => (
                 <button
                   key={key}
                   onClick={() => setActiveAngle(key)}
                   className="angle-tab"
                   style={{
-                    flex: 1, padding: '14px',
-                    background: activeAngle === key ? '#141414' : 'transparent',
-                    border: 'none',
-                    borderBottom: activeAngle === key ? `2px solid ${config.color}` : '2px solid transparent',
-                    color: activeAngle === key ? config.color : '#333',
-                    fontSize: '9px', letterSpacing: '2px',
-                    fontFamily: 'Montserrat', fontWeight: 600,
-                    cursor: 'pointer', transition: 'all 0.2s',
+                    flex: 1, padding: '14px 8px',
+                    background: activeAngle === key ? '#FDFBF8' : 'transparent',
+                    border: activeAngle === key ? '1px solid var(--border-light)' : '1px solid transparent',
+                    borderBottom: activeAngle === key ? '1px solid #FDFBF8' : '1px solid var(--border-light)',
+                    color: activeAngle === key ? config.color : 'var(--text-faint)',
+                    fontSize: '10px', letterSpacing: '2px',
+                    fontFamily: 'Jost', fontWeight: 600,
+                    cursor: 'pointer',
                   }}
                 >
                   {config.icon} {config.label}
@@ -354,47 +496,50 @@ export default function Dashboard() {
               ))}
             </div>
 
-            {/* ANGLE CONTENT */}
-            <div style={{
-              background: '#0D0D0D', border: '1px solid #1A1A1A',
-              borderTop: 'none', borderRadius: '0 0 6px 6px', padding: '40px',
-            }}>
-              <div style={{ fontSize: '10px', color: '#333', letterSpacing: '2px', fontFamily: 'Montserrat', marginBottom: '24px' }}>
+            {/* CONTENT */}
+            <div className="card" style={{ borderRadius: '0 0 16px 16px', padding: '36px' }}>
+              <div style={{
+                display: 'inline-block', padding: '4px 12px',
+                background: 'var(--pearl)', borderRadius: '20px',
+                fontSize: '10px', color: 'var(--text-faint)',
+                letterSpacing: '2px', fontFamily: 'Jost',
+                marginBottom: '20px',
+              }}>
                 {ANGLE_CONFIG[activeAngle].description}
               </div>
               <p style={{
-                fontSize: '15px', lineHeight: 1.8, color: '#C8BFA8',
-                fontFamily: "'Cormorant Garamond', serif", fontWeight: 300,
-                whiteSpace: 'pre-wrap', marginBottom: '32px',
+                fontSize: '15px', lineHeight: 1.9, color: '#3C3020',
+                fontFamily: "'Playfair Display', serif", fontWeight: 400,
+                whiteSpace: 'pre-wrap', marginBottom: '28px',
               }}>
                 {angles[activeAngle]}
               </p>
               <div style={{ display: 'flex', gap: '12px' }}>
                 <button
                   onClick={() => handleCopy(activeAngle)}
-                  className="btn-ghost"
+                  className="btn-secondary"
                   style={{
-                    flex: 1, padding: '14px', background: 'transparent',
-                    border: '1px solid #222', borderRadius: '4px', color: '#555',
-                    fontSize: '9px', letterSpacing: '2px', fontFamily: 'Montserrat',
-                    fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s',
+                    flex: 1, padding: '13px',
+                    borderRadius: '10px', color: 'var(--text-muted)',
+                    fontSize: '11px', letterSpacing: '2px',
+                    fontFamily: 'Jost', fontWeight: 500, cursor: 'pointer',
                   }}
                 >
-                  {copied === activeAngle ? '✓ COPIED' : '◻ COPY'}
+                  {copied === activeAngle ? '✓ COPIED' : '⎘ COPY'}
                 </button>
                 <button
                   onClick={() => handleSave(activeAngle)}
                   disabled={saved[activeAngle]}
-                  className="btn-gold"
+                  className="btn-primary"
                   style={{
-                    flex: 1, padding: '14px',
-                    background: saved[activeAngle] ? '#1A1A1A' : '#C9A84C',
-                    border: 'none', borderRadius: '4px',
-                    color: saved[activeAngle] ? '#C9A84C' : '#080808',
-                    fontSize: '9px', letterSpacing: '2px', fontFamily: 'Montserrat',
-                    fontWeight: 700,
+                    flex: 1, padding: '13px',
+                    border: 'none', borderRadius: '10px',
+                    color: saved[activeAngle] ? 'var(--text-faint)' : '#FFF8EC',
+                    fontSize: '11px', letterSpacing: '2px',
+                    fontFamily: 'Jost', fontWeight: 600,
                     cursor: saved[activeAngle] ? 'default' : 'pointer',
-                    transition: 'all 0.2s',
+                    background: saved[activeAngle] ? 'var(--border)' : undefined,
+                    boxShadow: saved[activeAngle] ? 'none' : undefined,
                   }}
                 >
                   {saved[activeAngle] ? '✓ ARCHIVED' : '◈ ARCHIVE'}
@@ -405,101 +550,130 @@ export default function Dashboard() {
         )}
 
         {/* VAULT */}
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
-            <div style={{ fontSize: '9px', letterSpacing: '4px', color: '#C9A84C', fontFamily: 'Montserrat' }}>
-              THE VAULT
-            </div>
-            <div style={{ flex: 1, height: '1px', background: '#1A1A1A' }} />
-            <div style={{ fontSize: '9px', letterSpacing: '2px', color: '#333', fontFamily: 'Montserrat' }}>
-              {history.length} PIECES
-            </div>
+        <div className="fade-up-3">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
+            <span style={{ fontSize: '16px', fontFamily: "'Playfair Display', serif", fontWeight: 500, color: '#2C2416' }}>
+              The Vault
+            </span>
+            <div className="gold-divider" style={{ flex: 1 }} />
+            <span style={{
+              padding: '3px 10px', background: 'var(--gold-pale)',
+              borderRadius: '20px', fontSize: '10px',
+              color: '#8C6A2E', fontFamily: 'Jost', fontWeight: 600,
+            }}>
+              {history.length} pieces
+            </span>
           </div>
 
           {history.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '80px 40px', border: '1px solid #111', borderRadius: '8px' }}>
-              <div style={{ fontSize: '32px', marginBottom: '16px', opacity: 0.3 }}>◎</div>
-              <div style={{ fontSize: '11px', letterSpacing: '3px', color: '#222', fontFamily: 'Montserrat', marginBottom: '8px' }}>
-                YOUR VAULT AWAITS
+            <div style={{
+              textAlign: 'center', padding: '64px 32px',
+              background: 'var(--white)', border: '2px dashed var(--border)',
+              borderRadius: '16px',
+            }}>
+              <div style={{ fontSize: '40px', marginBottom: '16px', opacity: 0.3 }}>◈</div>
+              <div style={{ fontSize: '14px', fontFamily: "'Playfair Display', serif", color: 'var(--text-muted)', marginBottom: '8px' }}>
+                Your vault awaits
               </div>
-              <div style={{ fontSize: '12px', color: '#1E1E1E', fontFamily: 'Montserrat', fontWeight: 300 }}>
+              <div style={{ fontSize: '12px', color: 'var(--text-faint)', fontFamily: 'Jost', fontWeight: 300 }}>
                 Upload your first call to begin building your authority archive
               </div>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {history.map((post) => (
-                <div key={post.id} className="vault-item" style={{
-                  padding: '28px 32px', border: '1px solid #111',
-                  borderRadius: '6px', background: '#0A0A0A', transition: 'all 0.3s',
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                <div key={post.id} className="vault-item" style={{ padding: '24px 28px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
                     <span style={{
-                      fontSize: '9px', letterSpacing: '2px',
-                      color: ANGLE_CONFIG[post.narrative_type]?.color || '#C9A84C',
-                      fontFamily: 'Montserrat', fontWeight: 600,
+                      padding: '3px 10px',
+                      background: 'linear-gradient(135deg, #FDF8EC, #F5EDD4)',
+                      border: '1px solid #E8D9A8',
+                      borderRadius: '20px',
+                      fontSize: '10px', letterSpacing: '2px',
+                      color: ANGLE_CONFIG[post.narrative_type]?.color || '#B8963E',
+                      fontFamily: 'Jost', fontWeight: 600,
                     }}>
                       {ANGLE_CONFIG[post.narrative_type]?.icon} {ANGLE_CONFIG[post.narrative_type]?.label || post.narrative_type?.toUpperCase()}
                     </span>
-                    <div style={{ flex: 1, height: '1px', background: '#111' }} />
-                    <span style={{ fontSize: '9px', color: '#222', fontFamily: 'Montserrat', letterSpacing: '1px' }}>
+                    <div style={{ flex: 1 }} />
+                    <span style={{ fontSize: '11px', color: 'var(--text-faint)', fontFamily: 'Jost' }}>
                       {new Date(post.created_at).toLocaleDateString('fr-FR')}
                     </span>
                   </div>
                   <p style={{
-                    fontSize: '14px', color: '#444', lineHeight: 1.7,
-                    fontFamily: "'Cormorant Garamond', serif", fontWeight: 300,
+                    fontSize: '14px', color: 'var(--text-muted)', lineHeight: 1.7,
+                    fontFamily: "'Playfair Display', serif", fontWeight: 400,
                   }}>
-                    {post.content_ai?.substring(0, 200)}...
+                    {post.content_ai?.substring(0, 220)}...
                   </p>
                 </div>
               ))}
             </div>
           )}
         </div>
-      </div>
+      </main>
 
       {/* UPGRADE MODAL */}
       {showUpgradeModal && (
         <div style={{
-          position: 'fixed', inset: 0, background: '#000000CC',
+          position: 'fixed', inset: 0,
+          background: 'rgba(44,36,22,0.6)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          zIndex: 1000, backdropFilter: 'blur(8px)',
+          zIndex: 1000, backdropFilter: 'blur(12px)',
         }}>
-          <div style={{
-            background: '#0D0D0D', border: '1px solid #C9A84C33',
-            borderRadius: '8px', padding: '60px',
-            maxWidth: '480px', width: '90%', textAlign: 'center',
-          }} className="animate-in">
-            <div style={{ fontSize: '32px', marginBottom: '24px' }}>✦</div>
+          <div className="card fade-up" style={{
+            padding: '56px 48px', maxWidth: '460px',
+            width: '90%', textAlign: 'center',
+            background: 'linear-gradient(160deg, #FDFBF8, #F5F0E8)',
+          }}>
             <div style={{
-              fontFamily: "'Cormorant Garamond', serif", fontSize: '32px',
-              fontWeight: 300, color: '#E8E0D0', marginBottom: '12px',
+              width: '56px', height: '56px', borderRadius: '16px',
+              background: 'linear-gradient(135deg, #C9A84C, #A07830)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              margin: '0 auto 24px', fontSize: '24px',
+              boxShadow: '0 8px 24px rgba(184,150,62,0.3)',
+            }}>✦</div>
+            <h2 style={{
+              fontFamily: "'Playfair Display', serif",
+              fontSize: '30px', fontWeight: 500, color: '#2C2416',
+              marginBottom: '12px', lineHeight: 1.2,
             }}>
-              Your free genius<br /><em style={{ color: '#C9A84C' }}>is exhausted.</em>
-            </div>
+              Your free genius<br /><em style={{ color: '#B8963E' }}>is exhausted.</em>
+            </h2>
             <p style={{
-              fontSize: '12px', color: '#444', fontFamily: 'Montserrat',
-              fontWeight: 300, letterSpacing: '1px', marginBottom: '40px', lineHeight: 1.7,
+              fontSize: '13px', color: 'var(--text-muted)', fontFamily: 'Jost',
+              fontWeight: 300, marginBottom: '32px', lineHeight: 1.7,
             }}>
               Unlock unlimited authority content.<br />
               Join the founders building their empire on LinkedIn.
             </p>
             <div style={{
-              fontSize: '28px', color: '#C9A84C',
-              fontFamily: "'Cormorant Garamond', serif", marginBottom: '32px',
+              padding: '20px', background: 'var(--gold-pale)',
+              borderRadius: '12px', marginBottom: '28px',
+              border: '1px solid #E8D9A8',
             }}>
-              $49<span style={{ fontSize: '14px', color: '#444', fontFamily: 'Montserrat' }}> / month</span>
+              <div style={{
+                fontSize: '40px', color: '#B8963E',
+                fontFamily: "'Playfair Display', serif", fontWeight: 700,
+              }}>
+                $49
+                <span style={{ fontSize: '16px', color: 'var(--text-muted)', fontFamily: 'Jost', fontWeight: 300 }}> / month</span>
+              </div>
+              <div style={{ fontSize: '11px', color: '#8C6A2E', fontFamily: 'Jost', letterSpacing: '1px', marginTop: '4px' }}>
+                Unlimited transcriptions · Full vault access
+              </div>
             </div>
             <button
               onClick={handleUpgrade}
               disabled={upgradeLoading}
-              className="btn-gold"
+              className="btn-primary"
               style={{
-                width: '100%', padding: '18px', background: '#C9A84C',
-                border: 'none', borderRadius: '4px', color: '#080808',
-                fontSize: '10px', letterSpacing: '3px', fontFamily: 'Montserrat',
-                fontWeight: 700, cursor: 'pointer', marginBottom: '16px', transition: 'all 0.2s',
+                width: '100%', padding: '16px',
+                border: 'none', borderRadius: '12px',
+                color: '#FFF8EC',
+                fontSize: '11px', letterSpacing: '3px',
+                fontFamily: 'Jost', fontWeight: 600,
+                cursor: 'pointer', marginBottom: '14px',
               }}
             >
               {upgradeLoading ? 'REDIRECTING...' : 'UPGRADE TO PRO →'}
@@ -507,9 +681,9 @@ export default function Dashboard() {
             <button
               onClick={() => setShowUpgradeModal(false)}
               style={{
-                background: 'none', border: 'none', color: '#222',
-                fontSize: '11px', fontFamily: 'Montserrat',
-                cursor: 'pointer', letterSpacing: '1px',
+                background: 'none', border: 'none',
+                color: 'var(--text-faint)', fontSize: '12px',
+                fontFamily: 'Jost', cursor: 'pointer', letterSpacing: '1px',
               }}
             >
               maybe later
@@ -519,11 +693,20 @@ export default function Dashboard() {
       )}
 
       {/* FOOTER */}
-      <div style={{ textAlign: 'center', padding: '40px', borderTop: '1px solid #111' }}>
-        <div style={{ fontSize: '9px', letterSpacing: '3px', color: '#1E1E1E', fontFamily: 'Montserrat' }}>
-          GHOSTSAAS © 2026 — AUTHORITY INTELLIGENCE
+      <footer style={{
+        borderTop: '1px solid var(--border-light)',
+        padding: '28px 48px',
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        background: 'rgba(247,244,239,0.8)',
+      }}>
+        <div style={{ fontSize: '10px', letterSpacing: '2px', color: 'var(--text-faint)', fontFamily: 'Jost' }}>
+          GHOSTSAAS © 2026
         </div>
-      </div>
+        <div className="gold-divider" style={{ flex: 1, margin: '0 24px' }} />
+        <div style={{ fontSize: '10px', letterSpacing: '2px', color: 'var(--text-faint)', fontFamily: 'Jost' }}>
+          AUTHORITY INTELLIGENCE
+        </div>
+      </footer>
     </div>
   );
 }
