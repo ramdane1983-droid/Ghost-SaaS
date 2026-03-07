@@ -42,15 +42,20 @@ export default function Login() {
 
     try {
       if (isSignup) {
-        const { error } = await supabase.auth.signUp({
+        const { error: signUpError } = await supabase.auth.signUp({
           email,
           password,
-          options: {
-            emailRedirectTo: 'https://ghost-saa-s.vercel.app/dashboard',
-          }
         });
-        if (error) throw error;
+        if (signUpError) throw signUpError;
+
+        // Auto sign in after signup
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (signInError) throw signInError;
         window.location.href = '/dashboard';
+
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
