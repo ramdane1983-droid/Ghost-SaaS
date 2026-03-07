@@ -30,6 +30,7 @@ export default function Dashboard() {
   const [dragOver, setDragOver] = useState(false);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
     const savedEmail = localStorage.getItem('ghostsaas_email');
     if (!savedEmail) {
       window.location.href = '/login';
@@ -89,7 +90,9 @@ export default function Dashboard() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('ghostsaas_email');
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('ghostsaas_email');
+    }
     window.location.href = '/login';
   };
 
@@ -142,23 +145,11 @@ export default function Dashboard() {
         .fade-up { animation: fadeUp 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
         .fade-up-2 { animation: fadeUp 0.7s 0.1s cubic-bezier(0.22, 1, 0.36, 1) both; }
         .fade-up-3 { animation: fadeUp 0.7s 0.2s cubic-bezier(0.22, 1, 0.36, 1) both; }
-        .btn-gold {
-          background: linear-gradient(135deg, #D4AF37 0%, #C9A84C 50%, #A07820 100%);
-          background-size: 200% auto; border: none;
-          box-shadow: 0 4px 20px rgba(201,168,76,0.3), inset 0 1px 0 rgba(255,255,255,0.2);
-          transition: all 0.4s ease; position: relative; overflow: hidden;
-        }
-        .btn-gold::after {
-          content: ''; position: absolute; inset: 0;
-          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
-          background-size: 200% auto; animation: shimmer 3s linear infinite;
-        }
+        .btn-gold { background: linear-gradient(135deg, #D4AF37 0%, #C9A84C 50%, #A07820 100%); background-size: 200% auto; border: none; box-shadow: 0 4px 20px rgba(201,168,76,0.3), inset 0 1px 0 rgba(255,255,255,0.2); transition: all 0.4s ease; position: relative; overflow: hidden; }
+        .btn-gold::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent); background-size: 200% auto; animation: shimmer 3s linear infinite; }
         .btn-gold:hover { box-shadow: 0 8px 36px rgba(201,168,76,0.45); transform: translateY(-2px); }
         .btn-gold:disabled { background: #E8E4DC; box-shadow: none; transform: none; color: #B0A898 !important; }
-        .btn-outline {
-          background: #FFFFFF; border: 1px solid #E8E4DC;
-          transition: all 0.25s ease; box-shadow: 0 1px 4px rgba(26,18,8,0.04);
-        }
+        .btn-outline { background: #FFFFFF; border: 1px solid #E8E4DC; transition: all 0.25s ease; box-shadow: 0 1px 4px rgba(26,18,8,0.04); }
         .btn-outline:hover { border-color: #C9A84C; color: #C9A84C !important; box-shadow: 0 4px 16px rgba(201,168,76,0.15); transform: translateY(-1px); }
         .card { background: #FFFFFF; border: 1px solid #EDE8DE; border-radius: 20px; box-shadow: 0 4px 24px rgba(26,18,8,0.05), 0 1px 4px rgba(26,18,8,0.03); }
         .upload-zone { border: 2px dashed #E8E4DC; border-radius: 16px; background: #FDFCF9; transition: all 0.3s ease; cursor: pointer; }
@@ -172,18 +163,12 @@ export default function Dashboard() {
       `}</style>
 
       {/* HEADER */}
-      <header style={{
-        position: 'sticky', top: 0, zIndex: 100,
-        background: 'rgba(250,250,248,0.88)', backdropFilter: 'blur(24px)',
-        borderBottom: '1px solid #EDE8DE', boxShadow: '0 2px 16px rgba(26,18,8,0.04)',
-      }}>
+      <header style={{ position: 'sticky', top: 0, zIndex: 100, background: 'rgba(250,250,248,0.88)', backdropFilter: 'blur(24px)', borderBottom: '1px solid #EDE8DE', boxShadow: '0 2px 16px rgba(26,18,8,0.04)' }}>
         <div style={{ maxWidth: '900px', margin: '0 auto', padding: '0 32px', height: '68px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'linear-gradient(135deg, #D4AF37, #A07820)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', color: '#FFF', boxShadow: '0 4px 12px rgba(201,168,76,0.35)' }}>◈</div>
             <div>
-              <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '20px', fontWeight: 600, letterSpacing: '2px', color: '#1A1208' }}>
-                GHOST<span style={{ color: '#C9A84C' }}>SAAS</span>
-              </div>
+              <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '20px', fontWeight: 600, letterSpacing: '2px', color: '#1A1208' }}>GHOST<span style={{ color: '#C9A84C' }}>SAAS</span></div>
               <div style={{ fontSize: '8px', letterSpacing: '3px', color: '#C4B99A', fontFamily: 'Montserrat', fontWeight: 500 }}>AUTHORITY ENGINE</div>
             </div>
           </div>
@@ -221,10 +206,7 @@ export default function Dashboard() {
             onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
             onDragLeave={() => setDragOver(false)}
             onDrop={handleDrop}>
-            <input type="file" id="file-upload"
-              accept="video/*,audio/*,.mp4,.mov,.mp3,.wav,.m4a,.webm"
-              onChange={e => setFile(e.target.files[0])}
-              style={{ display: 'none' }} />
+            <input type="file" id="file-upload" accept="video/*,audio/*,.mp4,.mov,.mp3,.wav,.m4a,.webm" onChange={e => setFile(e.target.files[0])} style={{ display: 'none' }} />
             <div style={{ width: '68px', height: '68px', borderRadius: '18px', background: file ? 'linear-gradient(135deg, #D4AF37, #A07820)' : 'linear-gradient(135deg, #F5F2EC, #EDE8DE)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', fontSize: '30px', boxShadow: file ? '0 8px 28px rgba(201,168,76,0.35)' : '0 4px 12px rgba(26,18,8,0.06)', transition: 'all 0.4s ease' }}>
               {file ? '✓' : '🎙'}
             </div>
@@ -233,8 +215,7 @@ export default function Dashboard() {
             </div>
             <div style={{ fontSize: '11px', color: '#C4B99A', fontFamily: 'Montserrat', letterSpacing: '1.5px' }}>
               {file ? (
-                <span style={{ color: '#C9A84C', cursor: 'pointer', textDecoration: 'underline' }}
-                  onClick={(e) => { e.stopPropagation(); setFile(null); }}>Remove file</span>
+                <span style={{ color: '#C9A84C', cursor: 'pointer', textDecoration: 'underline' }} onClick={(e) => { e.stopPropagation(); setFile(null); }}>Remove file</span>
               ) : 'MP4 · MOV · MP3 · WAV · M4A · WEBM'}
             </div>
           </div>
