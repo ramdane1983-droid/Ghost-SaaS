@@ -16,22 +16,22 @@ export async function POST(req) {
           price_data: {
             currency: 'usd',
             product_data: {
-              name: 'GhostSaaS Growth',
-              description: 'Unlimited authority content for B2B SaaS Founders',
+              name: 'GhostSaaS Pro',
+              description: 'Unlimited transcriptions · Full Vault · Priority Access',
             },
-            unit_amount: 29900,
+            unit_amount: 7900,
             recurring: { interval: 'month' },
           },
           quantity: 1,
         },
       ],
-      success_url: 'http://localhost:3000/dashboard?upgraded=true',
-      cancel_url: 'http://localhost:3000/dashboard',
+      success_url: `${process.env.NEXT_PUBLIC_URL}/dashboard?upgraded=true`,
+      cancel_url: `${process.env.NEXT_PUBLIC_URL}/dashboard`,
     });
 
     return NextResponse.json({ url: session.url });
-  } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (err) {
+    console.error('Stripe error:', err);
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
