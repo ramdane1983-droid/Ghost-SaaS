@@ -29,6 +29,14 @@ export default function Dashboard() {
   const [activeAngle, setActiveAngle] = useState('rant');
   const [dragOver, setDragOver] = useState(false);
 
+  // Déclaré AVANT useEffect
+  async function fetchHistory(userEmail) {
+    const { data } = await supabase.from('posts').select('*')
+      .eq('email', userEmail)
+      .order('created_at', { ascending: false });
+    setHistory(data || []);
+  }
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const savedEmail = localStorage.getItem('ghostsaas_email');
@@ -41,30 +49,12 @@ export default function Dashboard() {
     fetchHistory(savedEmail);
   }, []);
 
-  if (authLoading) return (
-    <div style={{
-      minHeight: '100vh', background: '#FAFAF8',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-    }}>
-      <div style={{ textAlign: 'center' }}>
-        <div style={{
-          width: '40px', height: '40px', borderRadius: '50%',
-          border: '2px solid #F0EDE6', borderTop: '2px solid #C9A84C',
-          animation: 'spin 1s linear infinite', margin: '0 auto 16px',
-        }} />
-        <div style={{ fontSize: '10px', letterSpacing: '4px', color: '#C9A84C', fontFamily: 'Montserrat' }}>LOADING</div>
-      </div>
-    </div>
-  );
+  function handleLogout() {
+    localStorage.removeItem('ghostsaas_email');
+    window.location.href = '/login';
+  }
 
-  const fetchHistory = async (userEmail) => {
-    const { data } = await supabase.from('posts').select('*')
-      .eq('email', userEmail || email)
-      .order('created_at', { ascending: false });
-    setHistory(data || []);
-  };
-
-  const handleUpload = async () => {
+  async function handleUpload() {
     if (!file) return alert("Sélectionne un fichier audio ou vidéo");
     setLoading(true); setAngles(null); setTranscript(''); setSaved({});
     try {
@@ -87,16 +77,9 @@ export default function Dashboard() {
       setCreditsRemaining(data.credits_remaining); setActiveAngle('rant');
     } catch (err) { alert("Erreur : " + err.message); }
     finally { setLoading(false); }
-  };
+  }
 
-  const handleLogout = () => {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('ghostsaas_email');
-    }
-    window.location.href = '/login';
-  };
-
-  const handleUpgrade = async () => {
+  async function handleUpgrade() {
     setUpgradeLoading(true);
     try {
       const res = await fetch('/api/stripe', {
@@ -107,26 +90,35 @@ export default function Dashboard() {
       if (data.url) window.location.href = data.url;
     } catch (err) { alert("Erreur : " + err.message); }
     finally { setUpgradeLoading(false); }
-  };
+  }
 
-  const handleSave = async (angleKey) => {
+  async function handleSave(angleKey) {
     const { error } = await supabase.from('posts').insert([{
       content_raw: transcript, content_ai: angles[angleKey],
       status: 'draft', narrative_type: angleKey, email,
     }]);
     if (!error) { setSaved(p => ({ ...p, [angleKey]: true })); await fetchHistory(email); }
-  };
+  }
 
-  const handleCopy = (angleKey) => {
+  function handleCopy(angleKey) {
     navigator.clipboard.writeText(angles[angleKey]);
     setCopied(angleKey); setTimeout(() => setCopied(''), 2000);
-  };
+  }
 
-  const handleDrop = (e) => {
+  function handleDrop(e) {
     e.preventDefault(); setDragOver(false);
     const dropped = e.dataTransfer.files[0];
     if (dropped) setFile(dropped);
-  };
+  }
+
+  if (authLoading) return (
+    <div style={{ minHeight: '100vh', background: '#FAFAF8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ width: '40px', height: '40px', borderRadius: '50%', border: '2px solid #F0EDE6', borderTop: '2px solid #C9A84C', animation: 'spin 1s linear infinite', margin: '0 auto 16px' }} />
+        <div style={{ fontSize: '10px', letterSpacing: '4px', color: '#C9A84C', fontFamily: 'Montserrat' }}>LOADING</div>
+      </div>
+    </div>
+  );
 
   return (
     <div style={{ minHeight: '100vh', background: '#FAFAF8', color: '#1A1208' }}>
