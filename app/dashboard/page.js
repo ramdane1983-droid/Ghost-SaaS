@@ -141,7 +141,6 @@ export default function Dashboard() {
         .fade-up { animation: fadeUp 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
         .fade-up-2 { animation: fadeUp 0.7s 0.1s cubic-bezier(0.22, 1, 0.36, 1) both; }
         .fade-up-3 { animation: fadeUp 0.7s 0.2s cubic-bezier(0.22, 1, 0.36, 1) both; }
-
         .btn-gold {
           background: linear-gradient(135deg, #D4AF37 0%, #C9A84C 50%, #A07820 100%);
           background-size: 200% auto;
@@ -160,10 +159,8 @@ export default function Dashboard() {
         .btn-gold:hover {
           box-shadow: 0 8px 36px rgba(201,168,76,0.45);
           transform: translateY(-2px);
-          background-position: right center;
         }
         .btn-gold:disabled { background: #E8E4DC; box-shadow: none; transform: none; color: #B0A898 !important; }
-
         .btn-outline {
           background: #FFFFFF;
           border: 1px solid #E8E4DC;
@@ -176,14 +173,12 @@ export default function Dashboard() {
           box-shadow: 0 4px 16px rgba(201,168,76,0.15);
           transform: translateY(-1px);
         }
-
         .card {
           background: #FFFFFF;
           border: 1px solid #EDE8DE;
           border-radius: 20px;
           box-shadow: 0 4px 24px rgba(26,18,8,0.05), 0 1px 4px rgba(26,18,8,0.03);
         }
-
         .upload-zone {
           border: 2px dashed #E8E4DC;
           border-radius: 16px;
@@ -196,10 +191,8 @@ export default function Dashboard() {
           background: linear-gradient(135deg, #FFFEF9, #FFF8E6);
           box-shadow: 0 0 0 4px rgba(201,168,76,0.08);
         }
-
         .tab-btn { transition: all 0.2s ease; }
         .tab-btn:hover { background: #F5F2EC !important; }
-
         .vault-card {
           background: #FFFFFF;
           border: 1px solid #EDE8DE;
@@ -212,12 +205,10 @@ export default function Dashboard() {
           box-shadow: 0 8px 32px rgba(201,168,76,0.12);
           transform: translateY(-2px);
         }
-
         .gold-line {
           height: 1px;
           background: linear-gradient(90deg, transparent, #C9A84C55, transparent);
         }
-
         .gold-badge {
           background: linear-gradient(135deg, #FFF8E6, #FFF0C0);
           border: 1px solid rgba(201,168,76,0.25);
@@ -304,7 +295,6 @@ export default function Dashboard() {
 
         {/* UPLOAD CARD */}
         <div className="card fade-up-2" style={{ padding: '36px', marginBottom: '20px' }}>
-
           <div
             className={`upload-zone ${dragOver ? 'drag-over' : ''}`}
             style={{ padding: '52px 32px', textAlign: 'center', marginBottom: '24px' }}
@@ -347,8 +337,7 @@ export default function Dashboard() {
 
           <button onClick={handleUpload} disabled={loading || !file} className="btn-gold" style={{
             width: '100%', padding: '18px', borderRadius: '14px',
-            color: '#2A1800',
-            fontSize: '11px', letterSpacing: '3px',
+            color: '#2A1800', fontSize: '11px', letterSpacing: '3px',
             fontFamily: 'Montserrat', fontWeight: 700,
             cursor: loading || !file ? 'not-allowed' : 'pointer',
           }}>
@@ -526,10 +515,10 @@ export default function Dashboard() {
               border: '1px solid rgba(201,168,76,0.2)',
             }}>
               <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '44px', fontWeight: 600, color: '#C9A84C' }}>
-                $49<span style={{ fontSize: '16px', color: '#A09070', fontFamily: 'Montserrat', fontWeight: 300 }}>/month</span>
+                $79<span style={{ fontSize: '16px', color: '#A09070', fontFamily: 'Montserrat', fontWeight: 300 }}>/month</span>
               </div>
               <div style={{ fontSize: '10px', color: '#8C6A1A', fontFamily: 'Montserrat', letterSpacing: '1.5px', marginTop: '4px' }}>
-                UNLIMITED · FULL VAULT · PRIORITY ACCESS
+                EARLY BIRD · UNLIMITED · FULL VAULT · PRIORITY ACCESS
               </div>
             </div>
             <button onClick={handleUpgrade} disabled={upgradeLoading} className="btn-gold" style={{
